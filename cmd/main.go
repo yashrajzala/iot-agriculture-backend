@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"iot-agriculture-backend/internal/api"
 	"iot-agriculture-backend/internal/config"
 	"iot-agriculture-backend/internal/mqtt"
 	"iot-agriculture-backend/internal/services"
@@ -40,6 +42,17 @@ func main() {
 		log.Fatalf("Failed to subscribe to MQTT topic: %v", err)
 	}
 
+	// Create API server
+	apiServer := api.NewServer(sensorService, mqttClient, "8080")
+
+	// Start API server in a goroutine
+	go func() {
+		log.Printf("Starting API server on port 8080")
+		if err := apiServer.Start(); err != nil && err != http.ErrServerClosed {
+			log.Printf("API server error: %v", err)
+		}
+	}()
+
 	// Start averaging timer
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
@@ -54,7 +67,7 @@ func main() {
 
 	log.Println("IoT Agriculture Backend started. Press Ctrl+C to stop.")
 	log.Println("MQTT data processing and 60-second averaging enabled.")
-	log.Println("API server disabled.")
+	log.Println("API server enabled on port 8080.")
 
 	// Main event loop
 	for {
@@ -66,6 +79,7 @@ func main() {
 		case <-sigChan:
 			// Graceful shutdown
 			log.Println("Shutting down gracefully...")
+			apiServer.Stop()
 			return
 
 		case <-ctx.Done():

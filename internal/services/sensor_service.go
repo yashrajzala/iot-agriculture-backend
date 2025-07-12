@@ -102,6 +102,11 @@ func (s *SensorService) GetInfluxDBService() *InfluxDBService {
 	return s.influxService
 }
 
+// GetAveragingService returns the averaging service for external access
+func (s *SensorService) GetAveragingService() *AveragingService {
+	return s.averagingService
+}
+
 // Close closes all services
 func (s *SensorService) Close() {
 	if s.influxService != nil {

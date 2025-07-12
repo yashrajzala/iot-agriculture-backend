@@ -1,12 +1,13 @@
 # IoT Agriculture Backend
 
-A lean, production-ready Go backend for IoT agriculture systems that processes sensor data from ESP32 devices via MQTT, calculates 60-second averages, and logs data to InfluxDB.
+A lean, production-ready Go backend for IoT agriculture systems that processes sensor data from ESP32 devices via MQTT, calculates 60-second averages, logs data to InfluxDB, and provides REST APIs for frontend integration.
 
 ## 🎯 Features
 
 - **MQTT Sensor Data Processing**: Real-time processing of ESP32 sensor data
 - **60-Second Averaging**: Automatic calculation and logging of sensor averages
 - **InfluxDB Integration**: Efficient time-series data storage
+- **REST API Endpoints**: Health checks and sensor data retrieval
 - **Production Ready**: Clean, optimized code with proper error handling
 - **Modular Architecture**: Clean separation of concerns
 
@@ -17,6 +18,13 @@ iot-agriculture-backend/
 ├── cmd/
 │   └── main.go                    # Application entry point
 ├── internal/
+│   ├── api/                       # REST API endpoints
+│   │   ├── api.go                 # Main API server setup
+│   │   ├── middleware.go          # CORS and common middleware
+│   │   ├── database_health.go     # Database health check API
+│   │   ├── mqtt_health.go         # MQTT connection health API
+│   │   ├── sensor_averages.go     # Sensor averages data API
+│   │   └── README.md              # API documentation
 │   ├── config/                    # Configuration management
 │   ├── models/                    # Data models (ESP32 sensor data)
 │   ├── mqtt/                      # MQTT client abstraction
@@ -66,6 +74,101 @@ iot-agriculture-backend/
    ```bash
    # Press Ctrl+C for graceful shutdown
    ```
+
+## 🌐 REST API Endpoints
+
+The backend provides REST APIs for frontend integration. All endpoints run on-demand and support CORS.
+
+### Available Endpoints
+
+#### 1. Database Health Check
+- **Endpoint:** `GET /health/database`
+- **Description:** Checks InfluxDB connection status
+- **Response:**
+```json
+{
+  "status": "connected",
+  "connected": true,
+  "message": "Connected to InfluxDB - Org: iot-agriculture, Bucket: sensor_data",
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+#### 2. MQTT Connection Health Check
+- **Endpoint:** `GET /health/mqtt`
+- **Description:** Checks MQTT broker connection status
+- **Response:**
+```json
+{
+  "status": "connected",
+  "connected": true,
+  "message": "Connected to MQTT broker: tcp://192.168.20.1:1883",
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+#### 3. Sensor Averages
+- **Endpoint:** `GET /sensors/averages`
+- **Description:** Fetches current sensor averages
+- **Query Parameters:**
+  - `sensors` (optional): Comma-separated list (e.g., "S1,S2,S3" or "all")
+  - `greenhouse_id` (optional): Filter by greenhouse
+  - `node_id` (optional): Filter by node
+- **Response:**
+```json
+{
+  "greenhouse_id": "GH1",
+  "node_id": "Node01",
+  "duration": 60.5,
+  "readings": 15,
+  "timestamp": "2024-01-01T12:00:00Z",
+  "sensors": {
+    "S1": 25.5,
+    "S2": 30.2,
+    "S3": 28.7,
+    "S4": 32.1,
+    "S5": 29.8,
+    "S6": 27.3,
+    "S7": 31.4,
+    "S8": 26.9,
+    "S9": 33.6
+  }
+}
+```
+
+### API Usage Examples
+
+```bash
+# Get all sensor averages
+curl http://localhost:8080/sensors/averages
+
+# Get specific sensors (S1, S5, S9)
+curl "http://localhost:8080/sensors/averages?sensors=S1,S5,S9"
+
+# Check database health
+curl http://localhost:8080/health/database
+
+# Check MQTT health
+curl http://localhost:8080/health/mqtt
+```
+
+### Frontend Integration
+
+```javascript
+// Get S5 sensor average
+fetch('http://localhost:8080/sensors/averages?sensors=S5')
+  .then(response => response.json())
+  .then(data => {
+    console.log('S5 Average:', data.sensors.S5);
+  });
+
+// Check system health
+fetch('http://localhost:8080/health/database')
+  .then(response => response.json())
+  .then(data => {
+    console.log('Database Status:', data.status);
+  });
+```
 
 ## ⚙️ Configuration
 

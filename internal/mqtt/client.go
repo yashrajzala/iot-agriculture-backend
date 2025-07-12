@@ -90,3 +90,15 @@ func (c *Client) Disconnect() {
 func (c *Client) IsConnected() bool {
 	return c.client != nil && c.client.IsConnected()
 }
+
+// GetConnectionInfo returns connection information
+func (c *Client) GetConnectionInfo() string {
+	if c.client == nil {
+		return "MQTT client not initialized"
+	}
+
+	if c.client.IsConnected() {
+		return fmt.Sprintf("Connected to MQTT broker: %s", c.config.String())
+	}
+	return fmt.Sprintf("Disconnected from MQTT broker: %s", c.config.String())
+}
