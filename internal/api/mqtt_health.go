@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -26,7 +25,7 @@ func NewMQTTHealthHandler(sensorService *services.SensorService, mqttClient *mqt
 // Handle handles MQTT connection health check requests
 func (h *MQTTHealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -52,6 +51,6 @@ func (h *MQTTHealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		health["message"] = connectionInfo
 	}
 
-	// Return JSON response
-	json.NewEncoder(w).Encode(health)
+	// Return success response
+	sendSuccess(w, health, "MQTT health check completed")
 }

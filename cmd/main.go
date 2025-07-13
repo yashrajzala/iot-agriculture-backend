@@ -21,7 +21,7 @@ func main() {
 	log.Printf("Starting IoT Agriculture Backend with config: %s", cfg.MQTT.String())
 
 	// Create sensor service
-	sensorService := services.NewSensorService()
+	sensorService := services.NewSensorService(cfg)
 	defer sensorService.Close()
 
 	// Log InfluxDB connection status
@@ -30,8 +30,8 @@ func main() {
 		log.Printf("InfluxDB Status: %s", influxService.GetConnectionInfo())
 	}
 
-	// Create MQTT client with message handler
-	mqttClient, err := mqtt.NewClient(&cfg.MQTT, sensorService.ProcessSensorData)
+	// Create MQTT client with message handler and metrics
+	mqttClient, err := mqtt.NewClient(&cfg.MQTT, sensorService.ProcessSensorData, sensorService.GetMetricsService())
 	if err != nil {
 		log.Fatalf("Failed to create MQTT client: %v", err)
 	}

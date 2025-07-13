@@ -1,15 +1,36 @@
-# IoT Agriculture Backend
+# 🌱 IoT Agriculture Backend
 
-A lean, production-ready Go backend for IoT agriculture systems that processes sensor data from ESP32 devices via MQTT, calculates 60-second averages, logs data to InfluxDB, and provides REST APIs for frontend integration.
+A production-ready Go backend for IoT agriculture systems that processes real-time sensor data from ESP32 devices via MQTT, calculates 60-second averages, stores data in InfluxDB, and provides secure REST APIs for frontend integration.
 
 ## 🎯 Features
 
+### 🔄 **Real-time Data Processing**
 - **MQTT Sensor Data Processing**: Real-time processing of ESP32 sensor data
 - **60-Second Averaging**: Automatic calculation and logging of sensor averages
-- **InfluxDB Integration**: Efficient time-series data storage
-- **REST API Endpoints**: Health checks and sensor data retrieval
-- **Production Ready**: Clean, optimized code with proper error handling
-- **Modular Architecture**: Clean separation of concerns
+- **Clean Logging**: Minimal console output with prominent 60-second averages display
+
+### 🗄️ **Data Storage & Management**
+- **InfluxDB Integration**: Efficient time-series data storage with circuit breaker protection
+- **Automatic Data Logging**: Every 60 seconds, averages are stored to InfluxDB
+- **Connection Resilience**: Auto-reconnection and failure recovery
+
+### 🔒 **Security & API**
+- **REST API Endpoints**: Health checks and sensor data retrieval with security headers
+- **Input Validation**: Query parameter sanitization and validation
+- **Security Headers**: XSS protection, content type options, frame options
+- **Environment-based Configuration**: No hardcoded secrets
+
+### 📊 **Monitoring & Observability**
+- **Prometheus Metrics**: Comprehensive monitoring with `/metrics` endpoint
+- **Health Checks**: Database and MQTT connectivity monitoring
+- **Real-time Metrics**: MQTT messages, sensor readings, API requests, system uptime
+- **Structured Logging**: Clean, informative console output
+
+### ⚡ **Performance & Reliability**
+- **Circuit Breaker Pattern**: InfluxDB write protection with automatic recovery
+- **Memory Optimization**: Efficient data structures for high-throughput processing
+- **Connection Pooling**: Optimized database connections
+- **Graceful Shutdown**: Proper cleanup and resource management
 
 ## 🏗️ Architecture
 
@@ -19,19 +40,23 @@ iot-agriculture-backend/
 │   └── main.go                    # Application entry point
 ├── internal/
 │   ├── api/                       # REST API endpoints
-│   │   ├── api.go                 # Main API server setup
-│   │   ├── middleware.go          # CORS and common middleware
+│   │   ├── api.go                 # Main API server setup with security middleware
+│   │   ├── middleware.go          # CORS, security, and monitoring middleware
 │   │   ├── database_health.go     # Database health check API
 │   │   ├── mqtt_health.go         # MQTT connection health API
-│   │   ├── sensor_averages.go     # Sensor averages data API
+│   │   ├── sensor_averages.go     # Sensor averages data API with validation
 │   │   └── README.md              # API documentation
 │   ├── config/                    # Configuration management
-│   ├── models/                    # Data models (ESP32 sensor data)
+│   │   └── config.go              # Environment-based configuration with validation
+│   ├── models/                    # Data models
+│   │   └── sensor.go              # ESP32 sensor data structures
 │   ├── mqtt/                      # MQTT client abstraction
+│   │   └── client.go              # MQTT client with auto-reconnection
 │   └── services/                  # Business logic services
-│       ├── sensor_service.go      # Sensor data processing
+│       ├── sensor_service.go      # Sensor data processing with clean logging
 │       ├── averaging_service.go   # 60-second averaging logic
-│       └── influxdb_service.go    # InfluxDB integration
+│       ├── influxdb_service.go    # InfluxDB integration with circuit breaker
+│       └── metrics_service.go     # Prometheus metrics collection
 ├── go.mod                         # Go module dependencies
 └── README.md                      # This file
 ```
@@ -45,147 +70,179 @@ iot-agriculture-backend/
 
 ## 🚀 Quick Start
 
-1. **Clone and navigate to the project**
-   ```bash
-   git clone <repository-url>
-   cd iot-agriculture-backend
-   ```
+### 1. **Clone and Setup**
+```bash
+git clone <repository-url>
+cd iot-agriculture-backend
+go mod tidy
+```
 
-2. **Install dependencies**
-   ```bash
-   go mod tidy
-   ```
+### 2. **Configure Environment Variables**
+```bash
+# Required for InfluxDB logging
+export INFLUXDB_TOKEN="your-influxdb-token-here"
 
-3. **Configure environment variables** (optional - uses defaults)
-   ```bash
-   # Set environment variables or use defaults:
-   # MQTT_BROKER=192.168.20.1
-   # MQTT_PORT=1883
-   # MQTT_TOPIC=esp32/data
-   # MQTT_CLIENT_ID=go-mqtt-subscriber
-   ```
+# Optional: Customize MQTT settings
+export MQTT_BROKER="192.168.20.1"
+export MQTT_PORT="1883"
+export MQTT_TOPIC="esp32/data"
 
-4. **Run the application**
-   ```bash
-   go run cmd/main.go
-   ```
+# Optional: Customize API port
+export API_PORT="8080"
+```
 
-5. **Stop the application**
-   ```bash
-   # Press Ctrl+C for graceful shutdown
-   ```
+### 3. **Run the Application**
+```bash
+go run cmd/main.go
+```
+
+### 4. **Verify Operation**
+- Check console output for 60-second averages
+- Visit `http://localhost:8080/health/database` for database status
+- Visit `http://localhost:8080/health/mqtt` for MQTT status
+- Visit `http://localhost:8080/metrics` for Prometheus metrics
 
 ## 🌐 REST API Endpoints
 
-The backend provides REST APIs for frontend integration. All endpoints run on-demand and support CORS.
+### **Health Checks**
 
-### Available Endpoints
-
-#### 1. Database Health Check
-- **Endpoint:** `GET /health/database`
-- **Description:** Checks InfluxDB connection status
-- **Response:**
-```json
-{
-  "status": "connected",
-  "connected": true,
-  "message": "Connected to InfluxDB - Org: iot-agriculture, Bucket: sensor_data",
-  "timestamp": "2024-01-01T12:00:00Z"
-}
-```
-
-#### 2. MQTT Connection Health Check
-- **Endpoint:** `GET /health/mqtt`
-- **Description:** Checks MQTT broker connection status
-- **Response:**
-```json
-{
-  "status": "connected",
-  "connected": true,
-  "message": "Connected to MQTT broker: tcp://192.168.20.1:1883",
-  "timestamp": "2024-01-01T12:00:00Z"
-}
-```
-
-#### 3. Sensor Averages
-- **Endpoint:** `GET /sensors/averages`
-- **Description:** Fetches current sensor averages
-- **Query Parameters:**
-  - `sensors` (optional): Comma-separated list (e.g., "S1,S2,S3" or "all")
-  - `greenhouse_id` (optional): Filter by greenhouse
-  - `node_id` (optional): Filter by node
-- **Response:**
-```json
-{
-  "greenhouse_id": "GH1",
-  "node_id": "Node01",
-  "duration": 60.5,
-  "readings": 15,
-  "timestamp": "2024-01-01T12:00:00Z",
-  "sensors": {
-    "S1": 25.5,
-    "S2": 30.2,
-    "S3": 28.7,
-    "S4": 32.1,
-    "S5": 29.8,
-    "S6": 27.3,
-    "S7": 31.4,
-    "S8": 26.9,
-    "S9": 33.6
-  }
-}
-```
-
-### API Usage Examples
-
+#### Database Health
 ```bash
-# Get all sensor averages
-curl http://localhost:8080/sensors/averages
-
-# Get specific sensors (S1, S5, S9)
-curl "http://localhost:8080/sensors/averages?sensors=S1,S5,S9"
-
-# Check database health
-curl http://localhost:8080/health/database
-
-# Check MQTT health
-curl http://localhost:8080/health/mqtt
+GET /health/database
+```
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "connected": true,
+    "message": "Connected to InfluxDB - Org: iot-agriculture, Bucket: sensor_data",
+    "status": "connected",
+    "timestamp": "2024-01-01T12:00:00Z"
+  },
+  "message": "Database health check completed",
+  "timestamp": "2024-01-01T12:00:00Z"
+}
 ```
 
-### Frontend Integration
+#### MQTT Health
+```bash
+GET /health/mqtt
+```
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "connected": true,
+    "message": "Connected to MQTT broker: tcp://192.168.20.1:1883",
+    "status": "connected",
+    "timestamp": "2024-01-01T12:00:00Z"
+  },
+  "message": "MQTT health check completed",
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
 
-```javascript
-// Get S5 sensor average
-fetch('http://localhost:8080/sensors/averages?sensors=S5')
-  .then(response => response.json())
-  .then(data => {
-    console.log('S5 Average:', data.sensors.S5);
-  });
+### **Sensor Data**
 
-// Check system health
-fetch('http://localhost:8080/health/database')
-  .then(response => response.json())
-  .then(data => {
-    console.log('Database Status:', data.status);
-  });
+#### Current Averages
+```bash
+GET /sensors/averages
+GET /sensors/averages?sensors=S1,S2,S3
+GET /sensors/averages?greenhouse_id=GH1&node_id=Node01
+```
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "greenhouse_id": "GH1",
+    "node_id": "Node01",
+    "duration": 60.0,
+    "readings": 30,
+    "timestamp": "2024-01-01T12:00:00Z",
+    "sensors": {
+      "S1": 4.33,
+      "S2": 14.87,
+      "S3": 25.23,
+      "S4": 36.73,
+      "S5": 45.33,
+      "S6": 55.03,
+      "S7": 65.27,
+      "S8": 75.53,
+      "S9": 85.57
+    }
+  },
+  "message": "Sensor averages retrieved successfully",
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+### **Monitoring**
+
+#### Prometheus Metrics
+```bash
+GET /metrics
+```
+Returns Prometheus-formatted metrics for monitoring.
+
+## 📊 Console Output
+
+The application provides clean, informative console output:
+
+```
+2025/07/14 00:04:35 Starting IoT Agriculture Backend...
+2025/07/14 00:04:35 Successfully connected to InfluxDB at http://localhost:8086
+2025/07/14 00:04:35 Connected to MQTT broker: 192.168.20.1:1883
+2025/07/14 00:04:35 IoT Agriculture Backend started. Press Ctrl+C to stop.
+
+MQTT: Received sensor data from esp32/data
+MQTT: Received sensor data from esp32/data
+...
+
+============================================================
+🕐 60-SECOND SENSOR AVERAGES
+============================================================
+⏱️  Duration: 60.0 seconds
+🏠  Greenhouse: GH1
+📡  Node: Node01
+📊  Total Readings: 30
+------------------------------------------------------------
+🌡️  S1 (Temperature): 4.33
+💧  S2 (Humidity): 14.87
+🌱  S3 (Soil Moisture): 25.23
+💡  S4 (Light): 36.73
+🌿  S5 (CO2): 45.33
+🌪️  S6 (Air Flow): 55.03
+🔋  S7 (Battery): 65.27
+📶  S8 (Signal): 75.53
+⚡  S9 (Power): 85.57
+============================================================
+2025/07/14 00:05:35 Logged sensor averages to InfluxDB: GH1/Node01 (60.0s, 30 readings)
 ```
 
 ## ⚙️ Configuration
 
-### Environment Variables
+### **Environment Variables**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MQTT_BROKER` | `192.168.20.1` | MQTT broker IP address |
 | `MQTT_PORT` | `1883` | MQTT broker port |
 | `MQTT_TOPIC` | `esp32/data` | MQTT topic to subscribe to |
-| `MQTT_CLIENT_ID` | `go-mqtt-subscriber` | MQTT client identifier |
+| `MQTT_CLIENT_ID` | `go-mqtt-subscriber-{timestamp}` | MQTT client identifier |
 | `MQTT_USERNAME` | `` | MQTT username (optional) |
 | `MQTT_PASSWORD` | `` | MQTT password (optional) |
+| `INFLUXDB_URL` | `http://localhost:8086` | InfluxDB server URL |
+| `INFLUXDB_TOKEN` | `[hardcoded]` | InfluxDB authentication token |
+| `INFLUXDB_ORG` | `iot-agriculture` | InfluxDB organization |
+| `INFLUXDB_BUCKET` | `sensor_data` | InfluxDB bucket for sensor data |
+| `API_PORT` | `8080` | API server port |
 
-### ESP32 Data Format
+### **ESP32 Data Format**
 
-The backend expects JSON data from ESP32 devices in this format:
+The backend expects JSON data from ESP32 devices:
 
 ```json
 {
@@ -203,71 +260,70 @@ The backend expects JSON data from ESP32 devices in this format:
 }
 ```
 
-## 📊 Data Processing
+## 📈 Monitoring & Metrics
 
-### Real-time Processing
-- **Individual Readings**: Each MQTT message is parsed and displayed
-- **JSON Validation**: Automatic validation of incoming sensor data
-- **Error Handling**: Graceful handling of malformed data
+### **Available Metrics**
 
-### 60-Second Averaging
-- **Automatic Calculation**: Averages calculated every 60 seconds
-- **Accumulative**: Collects all readings during the period
-- **Memory Efficient**: Clears old data after averaging
-- **InfluxDB Logging**: Logs averages to time-series database
+#### MQTT Metrics
+- `mqtt_messages_received_total` - Total MQTT messages received
+- `mqtt_connection_status` - Connection status (0/1)
+- `mqtt_reconnection_count_total` - Reconnection attempts
 
-### Sample Output
+#### Sensor Metrics
+- `sensor_readings_processed_total` - Total sensor readings processed
+- `sensor_averages_calculated_total` - Total averages calculated
+
+#### Database Metrics
+- `influxdb_writes_total` - Successful InfluxDB writes
+- `influxdb_write_errors_total` - InfluxDB write errors
+- `influxdb_connection_status` - Connection status (0/1)
+
+#### API Metrics
+- `api_requests_total` - Request counts by method/endpoint/status
+- `api_request_duration_seconds` - Response times
+
+#### System Metrics
+- `application_uptime_seconds` - Application uptime
+
+### **Prometheus Configuration**
+
+Add to your `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: 'iot-agriculture-backend'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
 ```
-=== New ESP32 Sensor Data ===
-Topic: esp32/data
-Payload: {"greenhouse_id":"GH1","node_id":"Node01","S1":12,"S2":34,...}
-Greenhouse: GH1
-Node: Node01
-S1: 12
-S2: 34
-...
-============================
 
-=== 60-Second Sensor Averages ===
-Duration: 60.1 seconds
-Greenhouse: GH1
-Node: Node01
-S1 Average: 23.45 (from 12 readings)
-S2 Average: 67.89 (from 12 readings)
-...
-================================
-```
+### **Grafana Dashboard**
 
-## 🏛️ Services Architecture
-
-### SensorService (`internal/services/sensor_service.go`)
-- **Responsibility**: MQTT data processing and display
-- **Functions**: JSON parsing, data validation, real-time display
-- **Integration**: Delegates averaging to AveragingService
-
-### AveragingService (`internal/services/averaging_service.go`)
-- **Responsibility**: 60-second averaging calculations
-- **Functions**: Data accumulation, average calculation, statistics
-- **Features**: Reading count, duration tracking, automatic reset
-
-### InfluxDBService (`internal/services/influxdb_service.go`)
-- **Responsibility**: Time-series data logging
-- **Functions**: Connection management, data writing, error handling
-- **Features**: Automatic reconnection, efficient batch writing
+Key metrics to monitor:
+- **MQTT Connection Status**: `mqtt_connection_status`
+- **Sensor Readings Rate**: `rate(sensor_readings_processed_total[5m])`
+- **API Request Rate**: `rate(api_requests_total[5m])`
+- **InfluxDB Write Errors**: `rate(influxdb_write_errors_total[5m])`
+- **Application Uptime**: `application_uptime_seconds`
 
 ## 🚀 Production Deployment
 
-### Building for Production
+### **Building for Production**
 ```bash
 go build -o bin/iot-backend cmd/main.go
 ```
 
-### Running in Production
+### **Running in Production**
 ```bash
+# Set environment variables
+export INFLUXDB_TOKEN="your-secure-token-here"
+
+# Run the application
 ./bin/iot-backend
 ```
 
-### Docker Support
+### **Docker Support**
 ```dockerfile
 FROM golang:1.24-alpine AS builder
 WORKDIR /app
@@ -282,25 +338,45 @@ COPY --from=builder /app/main .
 CMD ["./main"]
 ```
 
+### **Health Monitoring**
+Monitor these endpoints for system health:
+- `GET /health/database` - Database connectivity
+- `GET /health/mqtt` - MQTT connectivity  
+- `GET /metrics` - Prometheus metrics
+
 ## 🔧 Troubleshooting
 
-### Common Issues
+### **Common Issues**
 
-1. **MQTT Connection Issues**
-   - Verify MQTT broker is running
-   - Check network connectivity
-   - Verify broker IP and port
+1. **InfluxDB Connection Issues**
+   - Verify InfluxDB is running on localhost:8086
+   - Check token permissions and organization/bucket access
+   - Review `/health/database` endpoint
 
-2. **InfluxDB Connection Issues**
-   - Ensure InfluxDB is running on localhost:8086
-   - Verify token and organization settings
-   - Check bucket exists
+2. **MQTT Connection Issues**
+   - Verify MQTT broker is running and accessible
+   - Check network connectivity to broker
+   - Review `/health/mqtt` endpoint
 
 3. **No Sensor Data**
    - Verify ESP32 is publishing to correct topic
-   - Check MQTT subscription
+   - Check MQTT subscription status
    - Verify JSON format matches expected structure
+
+4. **High Memory Usage**
+   - Monitor memory metrics in Prometheus
+   - Check for memory leaks in long-running deployments
+
+### **Log Analysis**
+- **Clean console output** makes it easy to spot issues
+- **Structured logging** provides consistent format
+- **Health endpoints** provide quick status checks
+- **Prometheus metrics** enable detailed monitoring
 
 ## 📝 License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License.
+
+---
+
+**Built with ❤️ for IoT Agriculture Systems** 

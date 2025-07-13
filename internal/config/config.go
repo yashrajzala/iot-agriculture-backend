@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -27,6 +28,14 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+// InfluxDBConfig holds InfluxDB configuration
+type InfluxDBConfig struct {
+	URL    string
+	Token  string
+	Org    string
+	Bucket string
+}
+
 // APIConfig holds API server configuration
 type APIConfig struct {
 	Port string
@@ -36,12 +45,13 @@ type APIConfig struct {
 type Config struct {
 	MQTT     MQTTConfig
 	Database DatabaseConfig
+	InfluxDB InfluxDBConfig
 	API      APIConfig
 }
 
 // Load loads configuration from environment variables with defaults
 func Load() *Config {
-	return &Config{
+	config := &Config{
 		MQTT: MQTTConfig{
 			Broker:   getEnv("MQTT_BROKER", "192.168.20.1"),
 			Port:     getEnvAsInt("MQTT_PORT", 1883),
@@ -58,10 +68,31 @@ func Load() *Config {
 			DBName:   getEnv("DB_NAME", "iot_agriculture"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
+		InfluxDB: InfluxDBConfig{
+			URL:    getEnv("INFLUXDB_URL", "http://localhost:8086"),
+			Token:  getEnv("INFLUXDB_TOKEN", "sR5sjCdApIph5swrk-wKJdJKTyGN20pOhIPrwI3OVUhHtkQD-N8VnPs6hASE7fS2Rajocv17Edh5hOIgT-Lerg=="),
+			Org:    getEnv("INFLUXDB_ORG", "iot-agriculture"),
+			Bucket: getEnv("INFLUXDB_BUCKET", "sensor_data"),
+		},
 		API: APIConfig{
 			Port: getEnv("API_PORT", "8080"),
 		},
 	}
+
+	// Validate critical configuration
+	config.validate()
+	return config
+}
+
+// validate validates critical configuration values
+func (c *Config) validate() {
+	if c.MQTT.Broker == "" {
+		log.Fatal("MQTT_BROKER environment variable is required")
+	}
+	if c.MQTT.Topic == "" {
+		log.Fatal("MQTT_TOPIC environment variable is required")
+	}
+	// Note: INFLUXDB_TOKEN is optional - service will disable logging if not provided
 }
 
 // getEnv gets an environment variable or returns a default value

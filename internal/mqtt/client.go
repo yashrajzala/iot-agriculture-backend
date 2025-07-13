@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"iot-agriculture-backend/internal/config"
+	"iot-agriculture-backend/internal/services"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
@@ -15,13 +16,14 @@ type MessageHandler func(topic string, payload []byte)
 
 // Client wraps the MQTT client with additional functionality
 type Client struct {
-	client  MQTT.Client
-	config  *config.MQTTConfig
-	handler MessageHandler
+	client         MQTT.Client
+	config         *config.MQTTConfig
+	handler        MessageHandler
+	metricsService *services.MetricsService
 }
 
 // NewClient creates a new MQTT client
-func NewClient(cfg *config.MQTTConfig, handler MessageHandler) (*Client, error) {
+func NewClient(cfg *config.MQTTConfig, handler MessageHandler, metricsService *services.MetricsService) (*Client, error) {
 	opts := MQTT.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", cfg.Broker, cfg.Port))
 	opts.SetClientID(cfg.ClientID)
@@ -39,12 +41,19 @@ func NewClient(cfg *config.MQTTConfig, handler MessageHandler) (*Client, error) 
 	opts.SetConnectionLostHandler(func(client MQTT.Client, err error) {
 		log.Printf("MQTT connection lost: %v", err)
 		log.Printf("Attempting to reconnect...")
+		if metricsService != nil {
+			metricsService.SetMQTTConnectionStatus(false)
+			metricsService.IncrementMQTTReconnections()
+		}
 	})
 
 	// Set on connect handler
 	opts.SetOnConnectHandler(func(client MQTT.Client) {
 		log.Printf("Connected to MQTT broker: %s", cfg.String())
 		log.Printf("Client ID: %s, Keep-alive: 60s", cfg.ClientID)
+		if metricsService != nil {
+			metricsService.SetMQTTConnectionStatus(true)
+		}
 	})
 
 	client := MQTT.NewClient(opts)
@@ -53,9 +62,10 @@ func NewClient(cfg *config.MQTTConfig, handler MessageHandler) (*Client, error) 
 	}
 
 	return &Client{
-		client:  client,
-		config:  cfg,
-		handler: handler,
+		client:         client,
+		config:         cfg,
+		handler:        handler,
+		metricsService: metricsService,
 	}, nil
 }
 

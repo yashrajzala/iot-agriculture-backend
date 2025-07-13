@@ -1,7 +1,7 @@
 package api
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -24,7 +24,13 @@ func NewSensorAveragesHandler(sensorService *services.SensorService) *SensorAver
 // Handle handles sensor averages requests
 func (h *SensorAveragesHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	// Validate query parameters
+	if err := h.validateQueryParams(r); err != nil {
+		sendError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -80,16 +86,47 @@ func (h *SensorAveragesHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	// Filter by greenhouse_id if specified
 	if greenhouseID != "" && averages.GreenhouseID != greenhouseID {
-		response["error"] = "Greenhouse ID not found"
-		response["sensors"] = make(map[string]interface{})
+		sendError(w, http.StatusNotFound, "Greenhouse ID not found")
+		return
 	}
 
 	// Filter by node_id if specified
 	if nodeID != "" && averages.NodeID != nodeID {
-		response["error"] = "Node ID not found"
-		response["sensors"] = make(map[string]interface{})
+		sendError(w, http.StatusNotFound, "Node ID not found")
+		return
 	}
 
-	// Return JSON response
-	json.NewEncoder(w).Encode(response)
+	// Return success response
+	sendSuccess(w, response, "Sensor averages retrieved successfully")
+}
+
+// validateQueryParams validates query parameters
+func (h *SensorAveragesHandler) validateQueryParams(r *http.Request) error {
+	sensors := r.URL.Query().Get("sensors")
+
+	if sensors != "" && sensors != "all" {
+		validSensors := []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9"}
+		requested := strings.Split(sensors, ",")
+
+		for _, s := range requested {
+			s = strings.TrimSpace(s)
+			if s == "" {
+				continue
+			}
+
+			valid := false
+			for _, validSensor := range validSensors {
+				if s == validSensor {
+					valid = true
+					break
+				}
+			}
+
+			if !valid {
+				return fmt.Errorf("invalid sensor: %s", s)
+			}
+		}
+	}
+
+	return nil
 }

@@ -2,6 +2,8 @@ package services
 
 import (
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"iot-agriculture-backend/internal/models"
@@ -10,6 +12,7 @@ import (
 // AveragingService handles sensor data averaging calculations
 type AveragingService struct {
 	averages *models.SensorAverages
+	pool     *sync.Pool // Memory pool for sensor data slices
 }
 
 // NewAveragingService creates a new averaging service
@@ -18,6 +21,7 @@ func NewAveragingService() *AveragingService {
 		averages: &models.SensorAverages{
 			StartTime: time.Now(),
 		},
+		pool: nil, // Not using pool for now
 	}
 }
 
@@ -44,7 +48,7 @@ func (a *AveragingService) CalculateAndDisplayAverages() {
 }
 
 // CalculateAndDisplayAveragesWithLogging calculates, displays, and logs 60-second averages
-func (a *AveragingService) CalculateAndDisplayAveragesWithLogging(influxService *InfluxDBService) {
+func (a *AveragingService) CalculateAndDisplayAveragesWithLogging(influxService *InfluxDBService, metricsService *MetricsService) {
 	result := a.calculateAverages()
 	a.displayAverages(result)
 
@@ -52,6 +56,13 @@ func (a *AveragingService) CalculateAndDisplayAveragesWithLogging(influxService 
 	if influxService != nil && influxService.IsConnected() && result.Readings > 0 {
 		if err := influxService.LogAverages(result); err != nil {
 			fmt.Printf("Warning: Failed to log to InfluxDB: %v\n", err)
+			if metricsService != nil {
+				metricsService.IncrementInfluxDBWriteErrors()
+			}
+		} else {
+			if metricsService != nil {
+				metricsService.IncrementInfluxDBWrites()
+			}
 		}
 	} else if result.Readings == 0 {
 		fmt.Printf("Skipping InfluxDB log - no sensor readings in this period\n")
@@ -88,20 +99,24 @@ func (a *AveragingService) calculateAverages() models.AverageResult {
 
 // displayAverages displays the calculated averages
 func (a *AveragingService) displayAverages(result models.AverageResult) {
-	fmt.Printf("\n=== 60-Second Sensor Averages ===\n")
-	fmt.Printf("Duration: %.1f seconds\n", result.Duration)
-	fmt.Printf("Greenhouse: %s\n", result.GreenhouseID)
-	fmt.Printf("Node: %s\n", result.NodeID)
-	fmt.Printf("S1 Average: %.2f (from %d readings)\n", result.S1Average, result.Readings)
-	fmt.Printf("S2 Average: %.2f (from %d readings)\n", result.S2Average, result.Readings)
-	fmt.Printf("S3 Average: %.2f (from %d readings)\n", result.S3Average, result.Readings)
-	fmt.Printf("S4 Average: %.2f (from %d readings)\n", result.S4Average, result.Readings)
-	fmt.Printf("S5 Average: %.2f (from %d readings)\n", result.S5Average, result.Readings)
-	fmt.Printf("S6 Average: %.2f (from %d readings)\n", result.S6Average, result.Readings)
-	fmt.Printf("S7 Average: %.2f (from %d readings)\n", result.S7Average, result.Readings)
-	fmt.Printf("S8 Average: %.2f (from %d readings)\n", result.S8Average, result.Readings)
-	fmt.Printf("S9 Average: %.2f (from %d readings)\n", result.S9Average, result.Readings)
-	fmt.Printf("================================\n\n")
+	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
+	fmt.Printf("🕐 60-SECOND SENSOR AVERAGES\n")
+	fmt.Printf(strings.Repeat("=", 60) + "\n")
+	fmt.Printf("⏱️  Duration: %.1f seconds\n", result.Duration)
+	fmt.Printf("🏠  Greenhouse: %s\n", result.GreenhouseID)
+	fmt.Printf("📡  Node: %s\n", result.NodeID)
+	fmt.Printf("📊  Total Readings: %d\n", result.Readings)
+	fmt.Printf(strings.Repeat("-", 60) + "\n")
+	fmt.Printf("🌡️  S1 (Temperature): %.2f\n", result.S1Average)
+	fmt.Printf("💧  S2 (Humidity): %.2f\n", result.S2Average)
+	fmt.Printf("🌱  S3 (Soil Moisture): %.2f\n", result.S3Average)
+	fmt.Printf("💡  S4 (Light): %.2f\n", result.S4Average)
+	fmt.Printf("🌿  S5 (CO2): %.2f\n", result.S5Average)
+	fmt.Printf("🌪️  S6 (Air Flow): %.2f\n", result.S6Average)
+	fmt.Printf("🔋  S7 (Battery): %.2f\n", result.S7Average)
+	fmt.Printf("📶  S8 (Signal): %.2f\n", result.S8Average)
+	fmt.Printf("⚡  S9 (Power): %.2f\n", result.S9Average)
+	fmt.Printf(strings.Repeat("=", 60) + "\n\n")
 
 	// Debug info
 	if result.Readings == 0 {
@@ -114,15 +129,17 @@ func (a *AveragingService) displayAverages(result models.AverageResult) {
 
 // resetAverages resets the averaging system for the next period
 func (a *AveragingService) resetAverages() {
-	a.averages.S1Values = nil
-	a.averages.S2Values = nil
-	a.averages.S3Values = nil
-	a.averages.S4Values = nil
-	a.averages.S5Values = nil
-	a.averages.S6Values = nil
-	a.averages.S7Values = nil
-	a.averages.S8Values = nil
-	a.averages.S9Values = nil
+	// Clear all slices (don't return to pool, just clear them)
+	a.averages.S1Values = a.averages.S1Values[:0]
+	a.averages.S2Values = a.averages.S2Values[:0]
+	a.averages.S3Values = a.averages.S3Values[:0]
+	a.averages.S4Values = a.averages.S4Values[:0]
+	a.averages.S5Values = a.averages.S5Values[:0]
+	a.averages.S6Values = a.averages.S6Values[:0]
+	a.averages.S7Values = a.averages.S7Values[:0]
+	a.averages.S8Values = a.averages.S8Values[:0]
+	a.averages.S9Values = a.averages.S9Values[:0]
+
 	a.averages.StartTime = time.Now()
 }
 

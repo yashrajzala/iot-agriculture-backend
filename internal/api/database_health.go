@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -23,7 +22,7 @@ func NewDatabaseHealthHandler(sensorService *services.SensorService) *DatabaseHe
 // Handle handles database health check requests
 func (h *DatabaseHealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -52,6 +51,6 @@ func (h *DatabaseHealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		health["message"] = connectionInfo
 	}
 
-	// Return JSON response
-	json.NewEncoder(w).Encode(health)
+	// Return success response
+	sendSuccess(w, health, "Database health check completed")
 }

@@ -35,10 +35,22 @@ func NewServer(sensorService *services.SensorService, mqttClient *mqtt.Client, p
 	mqttHealthHandler := NewMQTTHealthHandler(sensorService, mqttClient)
 	sensorAveragesHandler := NewSensorAveragesHandler(sensorService)
 
-	// Register routes
-	mux.HandleFunc("/health/database", CORSMiddleware(dbHealthHandler.Handle))
-	mux.HandleFunc("/health/mqtt", CORSMiddleware(mqttHealthHandler.Handle))
-	mux.HandleFunc("/sensors/averages", CORSMiddleware(sensorAveragesHandler.Handle))
+	// Create monitoring middleware
+	monitoringMiddleware := MonitoringMiddleware(sensorService.GetMetricsService())
+
+	// Register routes with enhanced middleware
+	mux.HandleFunc("/health/database", SecurityMiddleware(RateLimitMiddleware(monitoringMiddleware(CORSMiddleware(dbHealthHandler.Handle)))))
+	mux.HandleFunc("/health/mqtt", SecurityMiddleware(RateLimitMiddleware(monitoringMiddleware(CORSMiddleware(mqttHealthHandler.Handle)))))
+	mux.HandleFunc("/sensors/averages", SecurityMiddleware(RateLimitMiddleware(monitoringMiddleware(CORSMiddleware(sensorAveragesHandler.Handle)))))
+
+	// Metrics endpoint (no rate limiting for Prometheus scraping)
+	mux.HandleFunc("/metrics", SecurityMiddleware(CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			sendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return
+		}
+		sensorService.GetMetricsService().GetMetricsHandler().ServeHTTP(w, r)
+	})))
 
 	return server
 }
