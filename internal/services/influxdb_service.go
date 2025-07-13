@@ -24,7 +24,7 @@ const (
 // InfluxDBService handles InfluxDB operations
 type InfluxDBService struct {
 	client   influxdb2.Client
-	writeAPI api.WriteAPIBlocking
+	writeAPI api.WriteAPIBlocking // Reverted to blocking API for reliability
 	org      string
 	bucket   string
 	config   *config.InfluxDBConfig
@@ -36,6 +36,10 @@ type InfluxDBService struct {
 	lastFailureTime time.Time
 	threshold       int
 	timeout         time.Duration
+
+	// Shutdown protection
+	shutdownMu sync.RWMutex
+	shutdown   bool
 }
 
 // NewInfluxDBService creates a new InfluxDB service
@@ -56,7 +60,7 @@ func NewInfluxDBService(cfg *config.InfluxDBConfig) *InfluxDBService {
 	client := influxdb2.NewClient(cfg.URL, cfg.Token)
 	defer client.Close()
 
-	// Create write API
+	// Create blocking write API for reliability
 	writeAPI := client.WriteAPIBlocking(cfg.Org, cfg.Bucket)
 
 	// Test connection
@@ -75,6 +79,7 @@ func NewInfluxDBService(cfg *config.InfluxDBConfig) *InfluxDBService {
 
 	log.Printf("Successfully connected to InfluxDB at %s", cfg.URL)
 	log.Printf("Using organization: %s, bucket: %s", cfg.Org, cfg.Bucket)
+	log.Printf("Blocking writes enabled for reliability")
 	return &InfluxDBService{
 		client:    client,
 		writeAPI:  writeAPI,
@@ -89,6 +94,14 @@ func NewInfluxDBService(cfg *config.InfluxDBConfig) *InfluxDBService {
 
 // LogAverages logs sensor averages to InfluxDB with circuit breaker
 func (i *InfluxDBService) LogAverages(averages models.AverageResult) error {
+	// Check shutdown state first
+	i.shutdownMu.RLock()
+	if i.shutdown {
+		i.shutdownMu.RUnlock()
+		return fmt.Errorf("InfluxDB service is shutting down")
+	}
+	i.shutdownMu.RUnlock()
+
 	if i.client == nil || i.writeAPI == nil {
 		return fmt.Errorf("InfluxDB not connected")
 	}
@@ -121,7 +134,7 @@ func (i *InfluxDBService) LogAverages(averages models.AverageResult) error {
 		time.Now(),
 	)
 
-	// Write point to InfluxDB
+	// Write point to InfluxDB with blocking API
 	err := i.writeAPI.WritePoint(context.Background(), point)
 	if err != nil {
 		i.recordFailure()
@@ -192,6 +205,12 @@ func (i *InfluxDBService) recordSuccess() {
 
 // Close closes the InfluxDB connection
 func (i *InfluxDBService) Close() {
+	// Mark as shutting down first
+	i.shutdownMu.Lock()
+	i.shutdown = true
+	i.shutdownMu.Unlock()
+
+	// Close the client
 	if i.client != nil {
 		i.client.Close()
 		log.Println("InfluxDB connection closed")

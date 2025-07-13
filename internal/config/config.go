@@ -41,12 +41,20 @@ type APIConfig struct {
 	Port string
 }
 
+// RedisConfig holds Redis configuration
+type RedisConfig struct {
+	URL      string
+	Password string
+	DB       int
+}
+
 // Config holds all application configuration
 type Config struct {
 	MQTT     MQTTConfig
 	Database DatabaseConfig
 	InfluxDB InfluxDBConfig
 	API      APIConfig
+	Redis    RedisConfig
 }
 
 // Load loads configuration from environment variables with defaults
@@ -76,6 +84,11 @@ func Load() *Config {
 		},
 		API: APIConfig{
 			Port: getEnv("API_PORT", "8080"),
+		},
+		Redis: RedisConfig{
+			URL:      getEnv("REDIS_URL", "localhost:6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnvAsInt("REDIS_DB", 0),
 		},
 	}
 

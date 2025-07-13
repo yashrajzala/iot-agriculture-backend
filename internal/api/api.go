@@ -12,16 +12,18 @@ import (
 type Server struct {
 	sensorService *services.SensorService
 	mqttClient    *mqtt.Client
+	rateLimiter   *services.RateLimiter
 	server        *http.Server
 }
 
 // NewServer creates a new API server
-func NewServer(sensorService *services.SensorService, mqttClient *mqtt.Client, port string) *Server {
+func NewServer(sensorService *services.SensorService, mqttClient *mqtt.Client, rateLimiter *services.RateLimiter, port string) *Server {
 	mux := http.NewServeMux()
 
 	server := &Server{
 		sensorService: sensorService,
 		mqttClient:    mqttClient,
+		rateLimiter:   rateLimiter,
 		server: &http.Server{
 			Addr:         ":" + port,
 			Handler:      mux,
@@ -31,6 +33,7 @@ func NewServer(sensorService *services.SensorService, mqttClient *mqtt.Client, p
 	}
 
 	// Create handlers
+	healthHandler := NewHealthHandler(sensorService, mqttClient)
 	dbHealthHandler := NewDatabaseHealthHandler(sensorService)
 	mqttHealthHandler := NewMQTTHealthHandler(sensorService, mqttClient)
 	sensorAveragesHandler := NewSensorAveragesHandler(sensorService)
@@ -38,10 +41,18 @@ func NewServer(sensorService *services.SensorService, mqttClient *mqtt.Client, p
 	// Create monitoring middleware
 	monitoringMiddleware := MonitoringMiddleware(sensorService.GetMetricsService())
 
+	// Create rate limiting configuration
+	rateLimitConfig := services.RateLimitConfig{
+		RequestsPerMinute: 60,   // 60 requests per minute
+		RequestsPerHour:   1000, // 1000 requests per hour
+		BurstSize:         10,   // Allow burst of 10 requests
+	}
+
 	// Register routes with enhanced middleware
-	mux.HandleFunc("/health/database", SecurityMiddleware(RateLimitMiddleware(monitoringMiddleware(CORSMiddleware(dbHealthHandler.Handle)))))
-	mux.HandleFunc("/health/mqtt", SecurityMiddleware(RateLimitMiddleware(monitoringMiddleware(CORSMiddleware(mqttHealthHandler.Handle)))))
-	mux.HandleFunc("/sensors/averages", SecurityMiddleware(RateLimitMiddleware(monitoringMiddleware(CORSMiddleware(sensorAveragesHandler.Handle)))))
+	mux.HandleFunc("/health", SecurityMiddleware(rateLimiter.RateLimitMiddleware(rateLimitConfig)(monitoringMiddleware(CORSMiddleware(healthHandler.Handle)))))
+	mux.HandleFunc("/health/database", SecurityMiddleware(rateLimiter.RateLimitMiddleware(rateLimitConfig)(monitoringMiddleware(CORSMiddleware(dbHealthHandler.Handle)))))
+	mux.HandleFunc("/health/mqtt", SecurityMiddleware(rateLimiter.RateLimitMiddleware(rateLimitConfig)(monitoringMiddleware(CORSMiddleware(mqttHealthHandler.Handle)))))
+	mux.HandleFunc("/sensors/averages", SecurityMiddleware(rateLimiter.RateLimitMiddleware(rateLimitConfig)(monitoringMiddleware(CORSMiddleware(sensorAveragesHandler.Handle)))))
 
 	// Metrics endpoint (no rate limiting for Prometheus scraping)
 	mux.HandleFunc("/metrics", SecurityMiddleware(CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {

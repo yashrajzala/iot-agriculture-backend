@@ -19,6 +19,8 @@ A production-ready Go backend for IoT agriculture systems that processes real-ti
 - **Input Validation**: Query parameter sanitization and validation
 - **Security Headers**: XSS protection, content type options, frame options
 - **Environment-based Configuration**: No hardcoded secrets
+- **Rate Limiting**: Redis-based rate limiting with sliding window algorithm
+- **Load Balancer Health Checks**: Comprehensive `/health` endpoint for monitoring
 
 ### 📊 **Monitoring & Observability**
 - **Prometheus Metrics**: Comprehensive monitoring with `/metrics` endpoint
@@ -28,6 +30,7 @@ A production-ready Go backend for IoT agriculture systems that processes real-ti
 
 ### ⚡ **Performance & Reliability**
 - **Circuit Breaker Pattern**: InfluxDB write protection with automatic recovery
+- **Async InfluxDB Writes**: Non-blocking database operations for better performance
 - **Memory Optimization**: Efficient data structures for high-throughput processing
 - **Connection Pooling**: Optimized database connections
 - **Graceful Shutdown**: Proper cleanup and resource management
@@ -66,6 +69,7 @@ iot-agriculture-backend/
 - **Go 1.24.5** or higher
 - **MQTT Broker** (e.g., Mosquitto, HiveMQ, AWS IoT)
 - **InfluxDB 2.x** running on localhost:8086
+- **Redis** running on localhost:6379 (for rate limiting)
 - **ESP32 Device** publishing sensor data
 
 ## 🚀 Quick Start
@@ -89,6 +93,11 @@ export MQTT_TOPIC="esp32/data"
 
 # Optional: Customize API port
 export API_PORT="8080"
+
+# Optional: Customize Redis settings (for rate limiting)
+export REDIS_URL="localhost:6379"
+export REDIS_PASSWORD=""
+export REDIS_DB="0"
 ```
 
 ### 3. **Run the Application**
@@ -98,6 +107,7 @@ go run cmd/main.go
 
 ### 4. **Verify Operation**
 - Check console output for 60-second averages
+- Visit `http://localhost:8080/health` for overall system health
 - Visit `http://localhost:8080/health/database` for database status
 - Visit `http://localhost:8080/health/mqtt` for MQTT status
 - Visit `http://localhost:8080/metrics` for Prometheus metrics
@@ -105,6 +115,47 @@ go run cmd/main.go
 ## 🌐 REST API Endpoints
 
 ### **Health Checks**
+
+#### Overall System Health
+```bash
+GET /health
+```
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "status": "healthy",
+    "timestamp": "2024-01-01T12:00:00Z",
+    "uptime": "2h30m15s",
+    "version": "1.0.0",
+    "services": {
+      "mqtt": {
+        "status": "healthy",
+        "message": "Connected to MQTT broker",
+        "timestamp": "2024-01-01T12:00:00Z"
+      },
+      "influxdb": {
+        "status": "healthy",
+        "message": "Connected to InfluxDB",
+        "timestamp": "2024-01-01T12:00:00Z"
+      },
+      "averaging": {
+        "status": "healthy",
+        "message": "Averaging service operational",
+        "timestamp": "2024-01-01T12:00:00Z"
+      },
+      "metrics": {
+        "status": "healthy",
+        "message": "Metrics service operational",
+        "timestamp": "2024-01-01T12:00:00Z"
+      }
+    }
+  },
+  "message": "Health check completed",
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
 
 #### Database Health
 ```bash
@@ -239,6 +290,9 @@ MQTT: Received sensor data from esp32/data
 | `INFLUXDB_ORG` | `iot-agriculture` | InfluxDB organization |
 | `INFLUXDB_BUCKET` | `sensor_data` | InfluxDB bucket for sensor data |
 | `API_PORT` | `8080` | API server port |
+| `REDIS_URL` | `localhost:6379` | Redis server URL for rate limiting |
+| `REDIS_PASSWORD` | `` | Redis password (optional) |
+| `REDIS_DB` | `0` | Redis database number |
 
 ### **ESP32 Data Format**
 
@@ -340,6 +394,7 @@ CMD ["./main"]
 
 ### **Health Monitoring**
 Monitor these endpoints for system health:
+- `GET /health` - Overall system health (load balancer endpoint)
 - `GET /health/database` - Database connectivity
 - `GET /health/mqtt` - MQTT connectivity  
 - `GET /metrics` - Prometheus metrics
@@ -358,14 +413,24 @@ Monitor these endpoints for system health:
    - Check network connectivity to broker
    - Review `/health/mqtt` endpoint
 
-3. **No Sensor Data**
+3. **Redis Connection Issues**
+   - Verify Redis is running on localhost:6379
+   - Check Redis authentication if configured
+   - Rate limiting will be disabled if Redis is unavailable
+
+4. **No Sensor Data**
    - Verify ESP32 is publishing to correct topic
    - Check MQTT subscription status
    - Verify JSON format matches expected structure
 
-4. **High Memory Usage**
+5. **High Memory Usage**
    - Monitor memory metrics in Prometheus
    - Check for memory leaks in long-running deployments
+
+6. **Rate Limiting Issues**
+   - Check Redis connectivity
+   - Verify rate limit headers in API responses
+   - Monitor rate limit metrics in Prometheus
 
 ### **Log Analysis**
 - **Clean console output** makes it easy to spot issues

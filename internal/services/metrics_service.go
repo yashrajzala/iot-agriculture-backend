@@ -204,3 +204,8 @@ func (ms *MetricsService) RecordAPIRequest(method, endpoint, status string, dura
 func (ms *MetricsService) GetMetricsHandler() http.Handler {
 	return promhttp.Handler()
 }
+
+// GetStartTime returns the service start time
+func (ms *MetricsService) GetStartTime() time.Time {
+	return ms.startTime
+}

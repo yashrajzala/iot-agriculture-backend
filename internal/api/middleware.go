@@ -86,10 +86,10 @@ func SecurityMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // RateLimitMiddleware adds basic rate limiting (placeholder for production)
+// This is now replaced by the Redis-based rate limiter in services/rate_limiter.go
 func RateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Implement proper rate limiting with Redis or similar
-		// For now, just pass through
+		// This is deprecated - use Redis-based rate limiter instead
 		next(w, r)
 	}
 }

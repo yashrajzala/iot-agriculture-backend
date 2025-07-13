@@ -42,8 +42,12 @@ func main() {
 		log.Fatalf("Failed to subscribe to MQTT topic: %v", err)
 	}
 
+	// Create rate limiter
+	rateLimiter := services.NewRateLimiter(cfg.Redis.URL)
+	defer rateLimiter.Close()
+
 	// Create API server
-	apiServer := api.NewServer(sensorService, mqttClient, "8080")
+	apiServer := api.NewServer(sensorService, mqttClient, rateLimiter, "8080")
 
 	// Start API server in a goroutine
 	go func() {
@@ -79,7 +83,20 @@ func main() {
 		case <-sigChan:
 			// Graceful shutdown
 			log.Println("Shutting down gracefully...")
+
+			// Stop the ticker first to prevent new averaging calculations
+			ticker.Stop()
+
+			// Stop API server
 			apiServer.Stop()
+
+			// Close services (this will cancel the InfluxDB context)
+			sensorService.Close()
+
+			// Small delay to ensure cleanup completes
+			time.Sleep(200 * time.Millisecond)
+
+			log.Println("Shutdown completed")
 			return
 
 		case <-ctx.Done():
