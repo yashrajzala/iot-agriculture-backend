@@ -71,7 +71,8 @@ func NewClient(cfg *config.MQTTConfig, handler MessageHandler, metricsService *s
 
 // Subscribe subscribes to the configured topic
 func (c *Client) Subscribe() error {
-	if token := c.client.Subscribe(c.config.Topic, 1, func(client MQTT.Client, msg MQTT.Message) {
+	topic := "greenhouse/+/node/+/data" // Updated to wildcard topic for all nodes
+	if token := c.client.Subscribe(topic, 1, func(client MQTT.Client, msg MQTT.Message) {
 		// Check for empty or null payloads
 		if len(msg.Payload()) == 0 {
 			log.Printf("WARNING: Empty MQTT payload received!")
@@ -82,9 +83,9 @@ func (c *Client) Subscribe() error {
 			c.handler(msg.Topic(), msg.Payload())
 		}
 	}); token.Wait() && token.Error() != nil {
-		return fmt.Errorf("failed to subscribe to topic %s: %w", c.config.Topic, token.Error())
+		return fmt.Errorf("failed to subscribe to topic %s: %w", topic, token.Error())
 	}
-	log.Printf("Subscribed to topic: %s", c.config.Topic)
+	log.Printf("Subscribed to topic: %s", topic)
 	return nil
 }
 

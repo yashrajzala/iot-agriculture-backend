@@ -8,6 +8,7 @@ import "time"
 type ESP32SensorData struct {
 	GreenhouseID string `json:"greenhouse_id"`
 	NodeID       string `json:"node_id"`
+	Timestamp    *int64 `json:"timestamp,omitempty"` // Optional timestamp from ESP32
 	S1           int    `json:"S1"`
 	S2           int    `json:"S2"`
 	S3           int    `json:"S3"`

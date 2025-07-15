@@ -11,94 +11,110 @@ import (
 
 // AveragingService handles sensor data averaging calculations
 type AveragingService struct {
-	averages *models.SensorAverages
-	pool     *sync.Pool // Memory pool for sensor data slices
+	mu      sync.Mutex
+	buffers map[string]*models.SensorAverages // key: greenhouse_id|node_id
 }
 
 // NewAveragingService creates a new averaging service
 func NewAveragingService() *AveragingService {
 	return &AveragingService{
-		averages: &models.SensorAverages{
-			StartTime: time.Now(),
-		},
-		pool: nil, // Not using pool for now
+		buffers: make(map[string]*models.SensorAverages),
 	}
 }
 
 // AddSensorData adds sensor data to the averaging system
 func (a *AveragingService) AddSensorData(data models.ESP32SensorData) {
-	a.averages.GreenhouseID = data.GreenhouseID
-	a.averages.NodeID = data.NodeID
-	a.averages.S1Values = append(a.averages.S1Values, data.S1)
-	a.averages.S2Values = append(a.averages.S2Values, data.S2)
-	a.averages.S3Values = append(a.averages.S3Values, data.S3)
-	a.averages.S4Values = append(a.averages.S4Values, data.S4)
-	a.averages.S5Values = append(a.averages.S5Values, data.S5)
-	a.averages.S6Values = append(a.averages.S6Values, data.S6)
-	a.averages.S7Values = append(a.averages.S7Values, data.S7)
-	a.averages.S8Values = append(a.averages.S8Values, data.S8)
-	a.averages.S9Values = append(a.averages.S9Values, data.S9)
-}
-
-// CalculateAndDisplayAverages calculates and displays 60-second averages
-func (a *AveragingService) CalculateAndDisplayAverages() {
-	result := a.calculateAverages()
-	a.displayAverages(result)
-	a.resetAverages()
-}
-
-// CalculateAndDisplayAveragesWithLogging calculates, displays, and logs 60-second averages
-func (a *AveragingService) CalculateAndDisplayAveragesWithLogging(influxService *InfluxDBService, metricsService *MetricsService) {
-	result := a.calculateAverages()
-	a.displayAverages(result)
-
-	// Only log to InfluxDB if we have actual readings (not 0)
-	if influxService != nil && influxService.IsConnected() && result.Readings > 0 {
-		if err := influxService.LogAverages(result); err != nil {
-			fmt.Printf("Warning: Failed to log to InfluxDB: %v\n", err)
-			if metricsService != nil {
-				metricsService.IncrementInfluxDBWriteErrors()
-			}
-		} else {
-			if metricsService != nil {
-				metricsService.IncrementInfluxDBWrites()
-			}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	key := data.GreenhouseID + "|" + data.NodeID
+	buf, ok := a.buffers[key]
+	if !ok {
+		buf = &models.SensorAverages{
+			GreenhouseID: data.GreenhouseID,
+			NodeID:       data.NodeID,
+			StartTime:    time.Now(),
 		}
-	} else if result.Readings == 0 {
-		fmt.Printf("Skipping InfluxDB log - no sensor readings in this period\n")
+		a.buffers[key] = buf
 	}
-
-	a.resetAverages()
+	buf.S1Values = append(buf.S1Values, data.S1)
+	buf.S2Values = append(buf.S2Values, data.S2)
+	buf.S3Values = append(buf.S3Values, data.S3)
+	buf.S4Values = append(buf.S4Values, data.S4)
+	buf.S5Values = append(buf.S5Values, data.S5)
+	buf.S6Values = append(buf.S6Values, data.S6)
+	buf.S7Values = append(buf.S7Values, data.S7)
+	buf.S8Values = append(buf.S8Values, data.S8)
+	buf.S9Values = append(buf.S9Values, data.S9)
 }
 
-// GetAverages returns the current averages without displaying them
-func (a *AveragingService) GetAverages() models.AverageResult {
-	return a.calculateAverages()
+// CalculateAndDisplayAverages calculates and displays 60-second averages for all nodes
+func (a *AveragingService) CalculateAndDisplayAverages() {
+	a.CalculateAndDisplayAveragesWithLogging(nil, nil)
 }
 
-// calculateAverages calculates the averages for all sensors
-func (a *AveragingService) calculateAverages() models.AverageResult {
-	duration := time.Since(a.averages.StartTime)
+// CalculateAndDisplayAveragesWithLogging calculates, displays, and logs 60-second averages for all nodes
+func (a *AveragingService) CalculateAndDisplayAveragesWithLogging(influxService *InfluxDBService, metricsService *MetricsService) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if len(a.buffers) == 0 {
+		fmt.Printf("No sensor data to average in this period.\n")
+		return
+	}
+	for _, buf := range a.buffers {
+		result := calculateAveragesForBuffer(buf)
+		displayAveragesForResult(result)
+		if influxService != nil && influxService.IsConnected() && result.Readings > 0 {
+			if err := influxService.LogAverages(result); err != nil {
+				fmt.Printf("Warning: Failed to log to InfluxDB: %v\n", err)
+				if metricsService != nil {
+					metricsService.IncrementInfluxDBWriteErrors()
+				}
+			} else {
+				if metricsService != nil {
+					metricsService.IncrementInfluxDBWrites()
+				}
+			}
+		} else if result.Readings == 0 {
+			fmt.Printf("Skipping InfluxDB log - no sensor readings for %s/%s in this period\n", buf.GreenhouseID, buf.NodeID)
+		}
+	}
+	// Clear all buffers for next period
+	a.buffers = make(map[string]*models.SensorAverages)
+}
 
+// GetAverages returns the current averages for all nodes
+func (a *AveragingService) GetAverages() []models.AverageResult {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	results := make([]models.AverageResult, 0, len(a.buffers))
+	for _, buf := range a.buffers {
+		results = append(results, calculateAveragesForBuffer(buf))
+	}
+	return results
+}
+
+// calculateAveragesForBuffer calculates the averages for a single node buffer
+func calculateAveragesForBuffer(buf *models.SensorAverages) models.AverageResult {
+	duration := time.Since(buf.StartTime)
 	return models.AverageResult{
-		GreenhouseID: a.averages.GreenhouseID,
-		NodeID:       a.averages.NodeID,
+		GreenhouseID: buf.GreenhouseID,
+		NodeID:       buf.NodeID,
 		Duration:     duration.Seconds(),
-		Readings:     len(a.averages.S1Values),
-		S1Average:    calculateAverage(a.averages.S1Values),
-		S2Average:    calculateAverage(a.averages.S2Values),
-		S3Average:    calculateAverage(a.averages.S3Values),
-		S4Average:    calculateAverage(a.averages.S4Values),
-		S5Average:    calculateAverage(a.averages.S5Values),
-		S6Average:    calculateAverage(a.averages.S6Values),
-		S7Average:    calculateAverage(a.averages.S7Values),
-		S8Average:    calculateAverage(a.averages.S8Values),
-		S9Average:    calculateAverage(a.averages.S9Values),
+		Readings:     len(buf.S1Values),
+		S1Average:    calculateAverage(buf.S1Values),
+		S2Average:    calculateAverage(buf.S2Values),
+		S3Average:    calculateAverage(buf.S3Values),
+		S4Average:    calculateAverage(buf.S4Values),
+		S5Average:    calculateAverage(buf.S5Values),
+		S6Average:    calculateAverage(buf.S6Values),
+		S7Average:    calculateAverage(buf.S7Values),
+		S8Average:    calculateAverage(buf.S8Values),
+		S9Average:    calculateAverage(buf.S9Values),
 	}
 }
 
-// displayAverages displays the calculated averages
-func (a *AveragingService) displayAverages(result models.AverageResult) {
+// displayAveragesForResult displays the calculated averages for a single node
+func displayAveragesForResult(result models.AverageResult) {
 	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
 	fmt.Printf("🕐 60-SECOND SENSOR AVERAGES\n")
 	fmt.Printf(strings.Repeat("=", 60) + "\n")
@@ -120,37 +136,30 @@ func (a *AveragingService) displayAverages(result models.AverageResult) {
 
 	// Debug info
 	if result.Readings == 0 {
-		fmt.Printf("⚠️  WARNING: No sensor readings received in the last 60 seconds!\n")
-		fmt.Printf("   Check if ESP32 is sending data to topic: esp32/data\n")
+		fmt.Printf("⚠️  WARNING: No sensor readings received in the last 60 seconds for this node!\n")
+		fmt.Printf("   Check if ESP32 is sending data to topic for this node\n")
 		fmt.Printf("   Check MQTT broker connectivity\n")
 		fmt.Printf("   This period will NOT be logged to InfluxDB\n")
 	}
 }
 
-// resetAverages resets the averaging system for the next period
-func (a *AveragingService) resetAverages() {
-	// Clear all slices (don't return to pool, just clear them)
-	a.averages.S1Values = a.averages.S1Values[:0]
-	a.averages.S2Values = a.averages.S2Values[:0]
-	a.averages.S3Values = a.averages.S3Values[:0]
-	a.averages.S4Values = a.averages.S4Values[:0]
-	a.averages.S5Values = a.averages.S5Values[:0]
-	a.averages.S6Values = a.averages.S6Values[:0]
-	a.averages.S7Values = a.averages.S7Values[:0]
-	a.averages.S8Values = a.averages.S8Values[:0]
-	a.averages.S9Values = a.averages.S9Values[:0]
-
-	a.averages.StartTime = time.Now()
-}
+// (resetAverages is no longer needed; buffers are cleared in CalculateAndDisplayAveragesWithLogging)
 
 // GetReadingCount returns the current number of readings
 func (a *AveragingService) GetReadingCount() int {
-	return len(a.averages.S1Values)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	count := 0
+	for _, buf := range a.buffers {
+		count += len(buf.S1Values)
+	}
+	return count
 }
 
 // GetDuration returns the current duration since last reset
 func (a *AveragingService) GetDuration() time.Duration {
-	return time.Since(a.averages.StartTime)
+	// Not meaningful for multi-node; return 0
+	return 0
 }
 
 // calculateAverage calculates the average of a slice of integers

@@ -53,6 +53,8 @@ func NewServer(sensorService *services.SensorService, mqttClient *mqtt.Client, r
 	mux.HandleFunc("/health/database", SecurityMiddleware(rateLimiter.RateLimitMiddleware(rateLimitConfig)(monitoringMiddleware(CORSMiddleware(dbHealthHandler.Handle)))))
 	mux.HandleFunc("/health/mqtt", SecurityMiddleware(rateLimiter.RateLimitMiddleware(rateLimitConfig)(monitoringMiddleware(CORSMiddleware(mqttHealthHandler.Handle)))))
 	mux.HandleFunc("/sensors/averages", SecurityMiddleware(rateLimiter.RateLimitMiddleware(rateLimitConfig)(monitoringMiddleware(CORSMiddleware(sensorAveragesHandler.Handle)))))
+	mux.HandleFunc("/sensors/averages/latest", SecurityMiddleware(rateLimiter.RateLimitMiddleware(rateLimitConfig)(monitoringMiddleware(CORSMiddleware(sensorAveragesHandler.HandleLatest)))))
+	mux.HandleFunc("/sensors/averages/all", SecurityMiddleware(rateLimiter.RateLimitMiddleware(rateLimitConfig)(monitoringMiddleware(CORSMiddleware(sensorAveragesHandler.HandleAll)))))
 
 	// Metrics endpoint (no rate limiting for Prometheus scraping)
 	mux.HandleFunc("/metrics", SecurityMiddleware(CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {

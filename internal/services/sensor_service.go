@@ -31,8 +31,8 @@ func (s *SensorService) ProcessSensorData(topic string, payload []byte) {
 	// Increment MQTT messages metric
 	s.metricsService.IncrementMQTTMessages()
 
-	// Log MQTT message received (minimal logging)
-	fmt.Printf("MQTT: Received sensor data from %s\n", topic)
+	// Remove per-message logging
+	// fmt.Printf("MQTT: Received sensor data from %s\n", topic)
 
 	var data models.ESP32SensorData
 	if err := json.Unmarshal(payload, &data); err != nil {

@@ -231,3 +231,141 @@ func (i *InfluxDBService) GetConnectionInfo() string {
 	}
 	return "InfluxDB not connected"
 }
+
+// GetLatestAveragesFromDB fetches the latest average for each node from InfluxDB
+func (i *InfluxDBService) GetLatestAveragesFromDB(greenhouseID, nodeID string) ([]models.AverageResult, error) {
+	if i.client == nil || i.writeAPI == nil {
+		return nil, fmt.Errorf("InfluxDB not connected")
+	}
+	q := `from(bucket: "` + i.bucket + `")
+	  |> range(start: -7d)
+	  |> filter(fn: (r) => r._measurement == "sensor_averages")`
+	if greenhouseID != "" {
+		q += ` |> filter(fn: (r) => r.greenhouse_id == "` + greenhouseID + `")`
+	}
+	if nodeID != "" {
+		q += ` |> filter(fn: (r) => r.node_id == "` + nodeID + `")`
+	}
+	q += ` |> sort(columns: ["_time"], desc: true)`
+	q += ` |> group(columns: ["greenhouse_id", "node_id", "_field"])
+	  |> first()`
+
+	queryAPI := i.client.QueryAPI(i.org)
+	result, err := queryAPI.Query(context.Background(), q)
+	if err != nil {
+		return nil, err
+	}
+
+	type nodeKey struct{ GreenhouseID, NodeID string }
+	// Map: nodeKey -> field -> value
+	nodeMap := make(map[nodeKey]map[string]float64)
+	nodeTime := make(map[nodeKey]time.Time)
+	for result.Next() {
+		gID := result.Record().ValueByKey("greenhouse_id")
+		nID := result.Record().ValueByKey("node_id")
+		field := result.Record().Field()
+		value, ok := result.Record().Value().(float64)
+		if !ok {
+			continue
+		}
+		key := nodeKey{fmt.Sprint(gID), fmt.Sprint(nID)}
+		if _, ok := nodeMap[key]; !ok {
+			nodeMap[key] = make(map[string]float64)
+		}
+		nodeMap[key][field] = value
+		t := result.Record().Time()
+		if t.After(nodeTime[key]) {
+			nodeTime[key] = t
+		}
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
+	}
+
+	var out []models.AverageResult
+	for key, fields := range nodeMap {
+		out = append(out, models.AverageResult{
+			GreenhouseID: key.GreenhouseID,
+			NodeID:       key.NodeID,
+			S1Average:    fields["s1_average"],
+			S2Average:    fields["s2_average"],
+			S3Average:    fields["s3_average"],
+			S4Average:    fields["s4_average"],
+			S5Average:    fields["s5_average"],
+			S6Average:    fields["s6_average"],
+			S7Average:    fields["s7_average"],
+			S8Average:    fields["s8_average"],
+			S9Average:    fields["s9_average"],
+			// Duration, Readings, etc. can be added if stored in DB
+			// Timestamp: nodeTime[key],
+		})
+	}
+	return out, nil
+}
+
+// GetAllAveragesFromDB fetches all average data for all nodes from InfluxDB
+func (i *InfluxDBService) GetAllAveragesFromDB(greenhouseID, nodeID string) ([]models.AverageResult, error) {
+	if i.client == nil || i.writeAPI == nil {
+		return nil, fmt.Errorf("InfluxDB not connected")
+	}
+	q := `from(bucket: "` + i.bucket + `")
+	  |> range(start: -30d)
+	  |> filter(fn: (r) => r._measurement == "sensor_averages")`
+	if greenhouseID != "" {
+		q += ` |> filter(fn: (r) => r.greenhouse_id == "` + greenhouseID + `")`
+	}
+	if nodeID != "" {
+		q += ` |> filter(fn: (r) => r.node_id == "` + nodeID + `")`
+	}
+	q += ` |> sort(columns: ["_time"], desc: false)`
+	q += ` |> group(columns: ["greenhouse_id", "node_id", "_field"])
+	  |> keep(columns: ["_time", "greenhouse_id", "node_id", "_field", "_value"])`
+
+	queryAPI := i.client.QueryAPI(i.org)
+	result, err := queryAPI.Query(context.Background(), q)
+	if err != nil {
+		return nil, err
+	}
+	type nodeKey struct {
+		GreenhouseID, NodeID string
+		Time                 time.Time
+	}
+	// Map: nodeKey -> field -> value
+	allMap := make(map[nodeKey]map[string]float64)
+	for result.Next() {
+		gID := result.Record().ValueByKey("greenhouse_id")
+		nID := result.Record().ValueByKey("node_id")
+		t := result.Record().Time()
+		field := result.Record().Field()
+		value, ok := result.Record().Value().(float64)
+		if !ok {
+			continue
+		}
+		key := nodeKey{fmt.Sprint(gID), fmt.Sprint(nID), t}
+		if _, ok := allMap[key]; !ok {
+			allMap[key] = make(map[string]float64)
+		}
+		allMap[key][field] = value
+	}
+	if result.Err() != nil {
+		return nil, result.Err()
+	}
+	var out []models.AverageResult
+	for key, fields := range allMap {
+		out = append(out, models.AverageResult{
+			GreenhouseID: key.GreenhouseID,
+			NodeID:       key.NodeID,
+			S1Average:    fields["s1_average"],
+			S2Average:    fields["s2_average"],
+			S3Average:    fields["s3_average"],
+			S4Average:    fields["s4_average"],
+			S5Average:    fields["s5_average"],
+			S6Average:    fields["s6_average"],
+			S7Average:    fields["s7_average"],
+			S8Average:    fields["s8_average"],
+			S9Average:    fields["s9_average"],
+			// Timestamp: key.Time,
+		})
+	}
+	return out, nil
+}
