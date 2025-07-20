@@ -102,4 +102,11 @@ func (h *NewEndpointHandler) Handle(w http.ResponseWriter, r *http.Request) {
 // api.go
 newEndpointHandler := NewNewEndpointHandler(dependencies)
 mux.HandleFunc("/new/endpoint", CORSMiddleware(newEndpointHandler.Handle))
-``` 
+```
+
+## 🆕 Changelog
+
+### vNext (Unreleased)
+- API now supports real sensor names (Bag_Temp, Light_Par, etc.)
+- Query params `node_id` and `sensors` allow filtering for specific node/sensor values
+- All API responses and examples updated for new sensor format 

@@ -376,3 +376,13 @@ This project is licensed under the MIT License.
 ---
 
 **Built with ❤️ for IoT Agriculture Systems** 
+
+## 🆕 Changelog
+
+### vNext (Unreleased)
+- **Support for real sensor names:** Backend and API now use real sensor names (e.g., Bag_Temp, Light_Par, Air_Temp, etc.) as published by ESP32/Arduino.
+- **Flexible multi-node, multi-sensor support:** Each node can send a different set of sensors; backend and API handle all combinations.
+- **API filtering:** You can now query `/sensors/averages/latest` and `/all` with `node_id` and `sensors` query params to get specific sensor values for specific nodes.
+- **InfluxDB schema update:** All sensor averages are stored with new field names (e.g., Bag_Temp_average).
+- **Documentation:** Updated all examples, payloads, and API usage to match new sensor format.
+- **Clean database instructions:** Added instructions for resetting InfluxDB data. 
