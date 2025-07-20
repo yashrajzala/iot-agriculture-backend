@@ -136,7 +136,7 @@ GET /health/mqtt
 #### Current In-Memory Averages (All Nodes)
 ```bash
 GET /sensors/averages
-GET /sensors/averages?sensors=S1,S2,S3
+GET /sensors/averages?sensors=Bag_Temp,Light_Par,Air_Temp
 GET /sensors/averages?greenhouse_id=GH1&node_id=Node01
 ```
 - Returns the running average for the current 60-second window (not yet written to DB).
@@ -144,8 +144,8 @@ GET /sensors/averages?greenhouse_id=GH1&node_id=Node01
 #### Latest Stored Averages (All Nodes, from Database)
 ```bash
 GET /sensors/averages/latest
-GET /sensors/averages/latest?node_id=Node03&sensors=S5
-GET /sensors/averages/latest?greenhouse_id=GH1&node_id=Node03&sensors=S5,S7
+GET /sensors/averages/latest?node_id=Node03&sensors=Bag_Temp
+GET /sensors/averages/latest?greenhouse_id=GH1&node_id=Node03&sensors=Bag_Temp,Leaf_temp
 ```
 - Returns the most recently stored average for each node from InfluxDB.
 - Supports filtering by greenhouse_id, node_id, and sensors.
@@ -153,7 +153,7 @@ GET /sensors/averages/latest?greenhouse_id=GH1&node_id=Node03&sensors=S5,S7
 #### All Historical Averages (All Nodes, from Database)
 ```bash
 GET /sensors/averages/all
-GET /sensors/averages/all?node_id=Node03&sensors=S5
+GET /sensors/averages/all?node_id=Node03&sensors=Bag_Temp
 ```
 - Returns all historical averages for all nodes from InfluxDB.
 - Supports filtering by greenhouse_id, node_id, and sensors.
@@ -165,9 +165,17 @@ GET /sensors/averages/all?node_id=Node03&sensors=S5
     "greenhouse_id": "GH1",
     "node_id": "Node03",
     "sensors": {
-      "S5": 45.77,
-      "S1": 12.34,
-      ...
+      "Bag_Temp": 45.77,
+      "Light_Par": 431.2,
+      "Air_Temp": 22.5,
+      "Air_Rh": 60.1,
+      "Leaf_temp": 18.3,
+      "drip_weight": 500.0,
+      "Bag_Rh1": 41.0,
+      "Bag_Rh2": 97.0,
+      "Bag_Rh3": 10.0,
+      "Bag_Rh4": 12.0,
+      "Rain": 0.0
     }
   },
   ...
@@ -273,128 +281,4 @@ Payload example for Node05:
 - `influxdb_connection_status` - Connection status (0/1)
 
 #### API Metrics
-- `api_requests_total` - Request counts by method/endpoint/status
-- `api_request_duration_seconds` - Response times
-
-#### System Metrics
-- `application_uptime_seconds` - Application uptime
-
-### **Prometheus Configuration**
-
-Add to your `prometheus.yml`:
-
-```yaml
-scrape_configs:
-  - job_name: 'iot-agriculture-backend'
-    static_configs:
-      - targets: ['localhost:8080']
-    metrics_path: '/metrics'
-    scrape_interval: 15s
-```
-
-### **Grafana Dashboard**
-
-Key metrics to monitor:
-- **MQTT Connection Status**: `mqtt_connection_status`
-- **Sensor Readings Rate**: `rate(sensor_readings_processed_total[5m])`
-- **API Request Rate**: `rate(api_requests_total[5m])`
-- **InfluxDB Write Errors**: `rate(influxdb_write_errors_total[5m])`
-- **Application Uptime**: `application_uptime_seconds`
-
-## 🚀 Production Deployment
-
-### **Building for Production**
-```bash
-go build -o bin/iot-backend cmd/main.go
-```
-
-### **Running in Production**
-```bash
-# Set environment variables
-export INFLUXDB_TOKEN="your-secure-token-here"
-
-# Run the application
-./bin/iot-backend
-```
-
-### **Docker Support**
-```dockerfile
-FROM golang:1.24-alpine AS builder
-WORKDIR /app
-COPY . .
-RUN go mod download
-RUN go build -o main cmd/main.go
-
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-COPY --from=builder /app/main .
-CMD ["./main"]
-```
-
-### **Health Monitoring**
-Monitor these endpoints for system health:
-- `GET /health` - Overall system health (load balancer endpoint)
-- `GET /health/database` - Database connectivity
-- `GET /health/mqtt` - MQTT connectivity  
-- `GET /metrics` - Prometheus metrics
-
-## 🔧 Troubleshooting
-
-### **Common Issues**
-
-1. **InfluxDB Connection Issues**
-   - Verify InfluxDB is running on localhost:8086
-   - Check token permissions and organization/bucket access
-   - Review `/health/database` endpoint
-
-2. **MQTT Connection Issues**
-   - Verify MQTT broker is running and accessible
-   - Check network connectivity to broker
-   - Review `/health/mqtt` endpoint
-
-3. **Redis Connection Issues**
-   - Verify Redis is running on localhost:6379
-   - Check Redis authentication if configured
-   - Rate limiting will be disabled if Redis is unavailable
-
-4. **No Sensor Data**
-   - Verify ESP32 is publishing to correct topic
-   - Check MQTT subscription status
-   - Verify JSON format matches expected structure
-
-5. **API Returns 0 for Sensor Values**
-   - Ensure InfluxDB field names are `s1_average`, ..., `s9_average` (lowercase, with `_average`)
-   - The API maps these to `S1`, ..., `S9` in the response
-   - If you see 0, check that data is being written for that node/sensor
-
-6. **High Memory Usage**
-   - Monitor memory metrics in Prometheus
-   - Check for memory leaks in long-running deployments
-
-7. **Rate Limiting Issues**
-   - Check Redis connectivity
-   - Verify rate limit headers in API responses
-   - Monitor rate limit metrics in Prometheus
-
-### **Log Analysis**
-- **Clean console output** makes it easy to spot issues
-- **Structured logging** provides consistent format
-- **Health endpoints** provide quick status checks
-- **Prometheus metrics** enable detailed monitoring
-
-## 📝 License
-
-This project is licensed under the MIT License. 
-
----
-
-**Built with ❤️ for IoT Agriculture Systems** 
-
-## 🆕 Changelog
-
-### vNext (Unreleased)
-- **Asynchronous MQTT processing:** Incoming MQTT messages are now processed via a buffered channel and worker goroutine for higher throughput and burst tolerance.
-- **Context propagation:** All service layers now accept context.Context for timeouts and cancellation.
-- **Resource pooling and tuning:** GOMAXPROCS is set to the number of CPU cores for optimal concurrency.
-- **Final codebase review:** Project is modular, robust, and production-ready with best practices for Go, IoT, and cloud-native systems. 
+- `
