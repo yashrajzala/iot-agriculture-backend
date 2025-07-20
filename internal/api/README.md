@@ -109,4 +109,8 @@ mux.HandleFunc("/new/endpoint", CORSMiddleware(newEndpointHandler.Handle))
 ### vNext (Unreleased)
 - API now supports real sensor names (Bag_Temp, Light_Par, etc.)
 - Query params `node_id` and `sensors` allow filtering for specific node/sensor values
-- All API responses and examples updated for new sensor format 
+- All API responses and examples updated for new sensor format
+- Asynchronous MQTT processing and batching for high throughput
+- Context propagation through all service layers
+- Resource pooling and concurrency tuning
+- Final codebase review: modular, robust, production-ready 
