@@ -42,7 +42,7 @@ This directory contains the API endpoints for the IoT Agriculture Backend. Each 
 - **Endpoint:** `GET /sensors/averages`
 - **Description:** Fetches current sensor averages from the local database
 - **Query Parameters:**
-  - `sensors` (optional): Comma-separated list of sensors (e.g., "S1,S2,S3" or "all")
+  - `sensors` (optional): Comma-separated list of sensors (e.g., "Bag_Temp,Light_Par,Air_Temp" or "all")
   - `greenhouse_id` (optional): Filter by specific greenhouse
   - `node_id` (optional): Filter by specific node
 - **Response:**
@@ -54,21 +54,21 @@ This directory contains the API endpoints for the IoT Agriculture Backend. Each 
   "readings": 15,
   "timestamp": "2024-01-01T12:00:00Z",
   "sensors": {
-    "S1": 25.5,
-    "S2": 30.2,
-    "S3": 28.7,
-    "S4": 32.1,
-    "S5": 29.8,
-    "S6": 27.3,
-    "S7": 31.4,
-    "S8": 26.9,
-    "S9": 33.6
+    "Bag_Temp": 25.5,
+    "Light_Par": 30.2,
+    "Air_Temp": 28.7,
+    "Air_Rh": 32.1,
+    "Leaf_temp": 29.8,
+    "drip_weight": 27.3,
+    "Bag_Rh1": 31.4,
+    "Bag_Rh2": 26.9,
+    "Bag_Rh3": 33.6
   }
 }
 ```
 - **Examples:**
   - `GET /sensors/averages` - Get all sensor averages
-  - `GET /sensors/averages?sensors=S1,S2,S3` - Get only S1, S2, S3 averages
+  - `GET /sensors/averages?sensors=Bag_Temp,Light_Par,Air_Temp` - Get only Bag_Temp, Light_Par, Air_Temp averages
   - `GET /sensors/averages?greenhouse_id=GH1&node_id=Node01` - Get averages for specific location
 
 ## Features

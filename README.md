@@ -222,21 +222,35 @@ Example topics:
 - `greenhouse/GH1/node/Node02/data`
 - ... up to Node05
 
-Payload example:
+Payload example for Node01-04:
 ```json
 {
   "greenhouse_id": "GH1",
   "node_id": "Node01",
   "timestamp": 12345678, // optional, milliseconds since boot
-  "S1": 12,
-  "S2": 34,
-  "S3": 56,
-  "S4": 78,
-  "S5": 90,
-  "S6": 23,
-  "S7": 45,
-  "S8": 67,
-  "S9": 89
+  "Bag_Temp": 27,
+  "Light_Par": 431,
+  "Air_Temp": 57,
+  "Air_Rh": 86,
+  "Leaf_temp": 58,
+  "drip_weight": 787,
+  "Bag_Rh1": 41,
+  "Bag_Rh2": 97,
+  "Bag_Rh3": 10,
+  "Bag_Rh4": 12
+}
+```
+
+Payload example for Node05:
+```json
+{
+  "greenhouse_id": "GH1",
+  "node_id": "Node05",
+  "timestamp": 12345678, // optional, milliseconds since boot
+  "Light_Par": 416,
+  "Air_Temp": 29,
+  "Air_Rh": 93,
+  "Rain": 0
 }
 ```
 
