@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -12,7 +13,7 @@ import (
 )
 
 // MessageHandler is a function type for handling MQTT messages
-type MessageHandler func(topic string, payload []byte)
+type MessageHandler func(ctx context.Context, topic string, payload []byte)
 
 // Client wraps the MQTT client with additional functionality
 type Client struct {
@@ -80,7 +81,7 @@ func (c *Client) Subscribe() error {
 		}
 
 		if c.handler != nil {
-			c.handler(msg.Topic(), msg.Payload())
+			c.handler(context.Background(), msg.Topic(), msg.Payload())
 		}
 	}); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to topic %s: %w", topic, token.Error())

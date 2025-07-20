@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -27,7 +28,7 @@ func NewSensorService(cfg *config.Config) *SensorService {
 }
 
 // ProcessSensorData processes incoming sensor data
-func (s *SensorService) ProcessSensorData(topic string, payload []byte) {
+func (s *SensorService) ProcessSensorData(ctx context.Context, topic string, payload []byte) {
 	// Increment MQTT messages metric
 	s.metricsService.IncrementMQTTMessages()
 

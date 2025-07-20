@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 )
 
 func main() {
+	// Set GOMAXPROCS to number of CPU cores for best performance
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	// Load configuration
 	cfg := config.Load()
 	log.Printf("Starting IoT Agriculture Backend with config: %s", cfg.MQTT.String())
@@ -30,8 +34,36 @@ func main() {
 		log.Printf("InfluxDB Status: %s", influxService.GetConnectionInfo())
 	}
 
-	// Create MQTT client with message handler and metrics
-	mqttClient, err := mqtt.NewClient(&cfg.MQTT, sensorService.ProcessSensorData, sensorService.GetMetricsService())
+	// Buffered channel for async MQTT processing
+	msgChan := make(chan struct {
+		Topic   string
+		Payload []byte
+		Ctx     context.Context
+	}, 1000) // Buffer size can be tuned
+
+	// Worker goroutine for processing MQTT messages
+	go func() {
+		for msg := range msgChan {
+			sensorService.ProcessSensorData(msg.Ctx, msg.Topic, msg.Payload)
+		}
+	}()
+
+	// MQTT handler pushes messages onto the channel
+	mqttHandler := func(ctx context.Context, topic string, payload []byte) {
+		select {
+		case msgChan <- struct {
+			Topic   string
+			Payload []byte
+			Ctx     context.Context
+		}{Topic: topic, Payload: payload, Ctx: ctx}:
+			// Enqueued successfully
+		default:
+			log.Printf("WARNING: MQTT message channel full, dropping message for topic %s", topic)
+		}
+	}
+
+	// Create MQTT client with async handler and metrics
+	mqttClient, err := mqtt.NewClient(&cfg.MQTT, mqttHandler, sensorService.GetMetricsService())
 	if err != nil {
 		log.Fatalf("Failed to create MQTT client: %v", err)
 	}
@@ -92,6 +124,9 @@ func main() {
 
 			// Close services (this will cancel the InfluxDB context)
 			sensorService.Close()
+
+			// Close MQTT message channel
+			close(msgChan)
 
 			// Small delay to ensure cleanup completes
 			time.Sleep(200 * time.Millisecond)

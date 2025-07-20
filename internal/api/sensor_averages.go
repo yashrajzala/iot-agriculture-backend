@@ -66,16 +66,39 @@ func (h *SensorAveragesHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			"sensors":       make(map[string]interface{}),
 		}
 
-		sensorMap := map[string]float64{
-			"S1": averages.S1Average,
-			"S2": averages.S2Average,
-			"S3": averages.S3Average,
-			"S4": averages.S4Average,
-			"S5": averages.S5Average,
-			"S6": averages.S6Average,
-			"S7": averages.S7Average,
-			"S8": averages.S8Average,
-			"S9": averages.S9Average,
+		sensorMap := map[string]interface{}{}
+		if averages.BagTemp != nil {
+			sensorMap["Bag_Temp"] = *averages.BagTemp
+		}
+		if averages.LightPar != nil {
+			sensorMap["Light_Par"] = *averages.LightPar
+		}
+		if averages.AirTemp != nil {
+			sensorMap["Air_Temp"] = *averages.AirTemp
+		}
+		if averages.AirRh != nil {
+			sensorMap["Air_Rh"] = *averages.AirRh
+		}
+		if averages.LeafTemp != nil {
+			sensorMap["Leaf_temp"] = *averages.LeafTemp
+		}
+		if averages.DripWeight != nil {
+			sensorMap["drip_weight"] = *averages.DripWeight
+		}
+		if averages.BagRh1 != nil {
+			sensorMap["Bag_Rh1"] = *averages.BagRh1
+		}
+		if averages.BagRh2 != nil {
+			sensorMap["Bag_Rh2"] = *averages.BagRh2
+		}
+		if averages.BagRh3 != nil {
+			sensorMap["Bag_Rh3"] = *averages.BagRh3
+		}
+		if averages.BagRh4 != nil {
+			sensorMap["Bag_Rh4"] = *averages.BagRh4
+		}
+		if averages.Rain != nil {
+			sensorMap["Rain"] = *averages.Rain
 		}
 
 		// Filter sensors based on request
@@ -109,7 +132,7 @@ func (h *SensorAveragesHandler) validateQueryParams(r *http.Request) error {
 	sensors := r.URL.Query().Get("sensors")
 
 	if sensors != "" && sensors != "all" {
-		validSensors := []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9"}
+		validSensors := []string{"Bag_Temp", "Light_Par", "Air_Temp", "Air_Rh", "Leaf_temp", "drip_weight", "Bag_Rh1", "Bag_Rh2", "Bag_Rh3", "Bag_Rh4", "Rain"}
 		requested := strings.Split(sensors, ",")
 
 		for _, s := range requested {
@@ -160,16 +183,39 @@ func (h *SensorAveragesHandler) HandleLatest(w http.ResponseWriter, r *http.Requ
 			"node_id":       avg.NodeID,
 			"sensors":       make(map[string]interface{}),
 		}
-		sensorMap := map[string]float64{
-			"S1": avg.S1Average,
-			"S2": avg.S2Average,
-			"S3": avg.S3Average,
-			"S4": avg.S4Average,
-			"S5": avg.S5Average,
-			"S6": avg.S6Average,
-			"S7": avg.S7Average,
-			"S8": avg.S8Average,
-			"S9": avg.S9Average,
+		sensorMap := map[string]interface{}{}
+		if avg.BagTemp != nil {
+			sensorMap["Bag_Temp"] = *avg.BagTemp
+		}
+		if avg.LightPar != nil {
+			sensorMap["Light_Par"] = *avg.LightPar
+		}
+		if avg.AirTemp != nil {
+			sensorMap["Air_Temp"] = *avg.AirTemp
+		}
+		if avg.AirRh != nil {
+			sensorMap["Air_Rh"] = *avg.AirRh
+		}
+		if avg.LeafTemp != nil {
+			sensorMap["Leaf_temp"] = *avg.LeafTemp
+		}
+		if avg.DripWeight != nil {
+			sensorMap["drip_weight"] = *avg.DripWeight
+		}
+		if avg.BagRh1 != nil {
+			sensorMap["Bag_Rh1"] = *avg.BagRh1
+		}
+		if avg.BagRh2 != nil {
+			sensorMap["Bag_Rh2"] = *avg.BagRh2
+		}
+		if avg.BagRh3 != nil {
+			sensorMap["Bag_Rh3"] = *avg.BagRh3
+		}
+		if avg.BagRh4 != nil {
+			sensorMap["Bag_Rh4"] = *avg.BagRh4
+		}
+		if avg.Rain != nil {
+			sensorMap["Rain"] = *avg.Rain
 		}
 		if sensors == "" || sensors == "all" {
 			response["sensors"] = sensorMap
@@ -218,16 +264,39 @@ func (h *SensorAveragesHandler) HandleAll(w http.ResponseWriter, r *http.Request
 			"node_id":       avg.NodeID,
 			"sensors":       make(map[string]interface{}),
 		}
-		sensorMap := map[string]float64{
-			"S1": avg.S1Average,
-			"S2": avg.S2Average,
-			"S3": avg.S3Average,
-			"S4": avg.S4Average,
-			"S5": avg.S5Average,
-			"S6": avg.S6Average,
-			"S7": avg.S7Average,
-			"S8": avg.S8Average,
-			"S9": avg.S9Average,
+		sensorMap := map[string]interface{}{}
+		if avg.BagTemp != nil {
+			sensorMap["Bag_Temp"] = *avg.BagTemp
+		}
+		if avg.LightPar != nil {
+			sensorMap["Light_Par"] = *avg.LightPar
+		}
+		if avg.AirTemp != nil {
+			sensorMap["Air_Temp"] = *avg.AirTemp
+		}
+		if avg.AirRh != nil {
+			sensorMap["Air_Rh"] = *avg.AirRh
+		}
+		if avg.LeafTemp != nil {
+			sensorMap["Leaf_temp"] = *avg.LeafTemp
+		}
+		if avg.DripWeight != nil {
+			sensorMap["drip_weight"] = *avg.DripWeight
+		}
+		if avg.BagRh1 != nil {
+			sensorMap["Bag_Rh1"] = *avg.BagRh1
+		}
+		if avg.BagRh2 != nil {
+			sensorMap["Bag_Rh2"] = *avg.BagRh2
+		}
+		if avg.BagRh3 != nil {
+			sensorMap["Bag_Rh3"] = *avg.BagRh3
+		}
+		if avg.BagRh4 != nil {
+			sensorMap["Bag_Rh4"] = *avg.BagRh4
+		}
+		if avg.Rain != nil {
+			sensorMap["Rain"] = *avg.Rain
 		}
 		if sensors == "" || sensors == "all" {
 			response["sensors"] = sensorMap

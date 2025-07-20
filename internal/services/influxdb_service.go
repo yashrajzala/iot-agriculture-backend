@@ -111,30 +111,54 @@ func (i *InfluxDBService) LogAverages(averages models.AverageResult) error {
 		return fmt.Errorf("circuit breaker is open - InfluxDB writes are temporarily disabled")
 	}
 
-	// Create point for sensor averages
+	fields := map[string]interface{}{
+		"readings": averages.Readings,
+		"duration": averages.Duration,
+	}
+	if averages.BagTemp != nil {
+		fields["Bag_Temp_average"] = *averages.BagTemp
+	}
+	if averages.LightPar != nil {
+		fields["Light_Par_average"] = *averages.LightPar
+	}
+	if averages.AirTemp != nil {
+		fields["Air_Temp_average"] = *averages.AirTemp
+	}
+	if averages.AirRh != nil {
+		fields["Air_Rh_average"] = *averages.AirRh
+	}
+	if averages.LeafTemp != nil {
+		fields["Leaf_temp_average"] = *averages.LeafTemp
+	}
+	if averages.DripWeight != nil {
+		fields["drip_weight_average"] = *averages.DripWeight
+	}
+	if averages.BagRh1 != nil {
+		fields["Bag_Rh1_average"] = *averages.BagRh1
+	}
+	if averages.BagRh2 != nil {
+		fields["Bag_Rh2_average"] = *averages.BagRh2
+	}
+	if averages.BagRh3 != nil {
+		fields["Bag_Rh3_average"] = *averages.BagRh3
+	}
+	if averages.BagRh4 != nil {
+		fields["Bag_Rh4_average"] = *averages.BagRh4
+	}
+	if averages.Rain != nil {
+		fields["Rain_average"] = *averages.Rain
+	}
+
 	point := influxdb2.NewPoint(
 		"sensor_averages",
 		map[string]string{
 			"greenhouse_id": averages.GreenhouseID,
 			"node_id":       averages.NodeID,
 		},
-		map[string]interface{}{
-			"s1_average": averages.S1Average,
-			"s2_average": averages.S2Average,
-			"s3_average": averages.S3Average,
-			"s4_average": averages.S4Average,
-			"s5_average": averages.S5Average,
-			"s6_average": averages.S6Average,
-			"s7_average": averages.S7Average,
-			"s8_average": averages.S8Average,
-			"s9_average": averages.S9Average,
-			"readings":   averages.Readings,
-			"duration":   averages.Duration,
-		},
+		fields,
 		time.Now(),
 	)
 
-	// Write point to InfluxDB with blocking API
 	err := i.writeAPI.WritePoint(context.Background(), point)
 	if err != nil {
 		i.recordFailure()
@@ -287,17 +311,17 @@ func (i *InfluxDBService) GetLatestAveragesFromDB(greenhouseID, nodeID string) (
 		out = append(out, models.AverageResult{
 			GreenhouseID: key.GreenhouseID,
 			NodeID:       key.NodeID,
-			S1Average:    fields["s1_average"],
-			S2Average:    fields["s2_average"],
-			S3Average:    fields["s3_average"],
-			S4Average:    fields["s4_average"],
-			S5Average:    fields["s5_average"],
-			S6Average:    fields["s6_average"],
-			S7Average:    fields["s7_average"],
-			S8Average:    fields["s8_average"],
-			S9Average:    fields["s9_average"],
-			// Duration, Readings, etc. can be added if stored in DB
-			// Timestamp: nodeTime[key],
+			BagTemp:      getFieldPtr(fields, "Bag_Temp_average"),
+			LightPar:     getFieldPtr(fields, "Light_Par_average"),
+			AirTemp:      getFieldPtr(fields, "Air_Temp_average"),
+			AirRh:        getFieldPtr(fields, "Air_Rh_average"),
+			LeafTemp:     getFieldPtr(fields, "Leaf_temp_average"),
+			DripWeight:   getFieldPtr(fields, "drip_weight_average"),
+			BagRh1:       getFieldPtr(fields, "Bag_Rh1_average"),
+			BagRh2:       getFieldPtr(fields, "Bag_Rh2_average"),
+			BagRh3:       getFieldPtr(fields, "Bag_Rh3_average"),
+			BagRh4:       getFieldPtr(fields, "Bag_Rh4_average"),
+			Rain:         getFieldPtr(fields, "Rain_average"),
 		})
 	}
 	return out, nil
@@ -355,17 +379,25 @@ func (i *InfluxDBService) GetAllAveragesFromDB(greenhouseID, nodeID string) ([]m
 		out = append(out, models.AverageResult{
 			GreenhouseID: key.GreenhouseID,
 			NodeID:       key.NodeID,
-			S1Average:    fields["s1_average"],
-			S2Average:    fields["s2_average"],
-			S3Average:    fields["s3_average"],
-			S4Average:    fields["s4_average"],
-			S5Average:    fields["s5_average"],
-			S6Average:    fields["s6_average"],
-			S7Average:    fields["s7_average"],
-			S8Average:    fields["s8_average"],
-			S9Average:    fields["s9_average"],
-			// Timestamp: key.Time,
+			BagTemp:      getFieldPtr(fields, "Bag_Temp_average"),
+			LightPar:     getFieldPtr(fields, "Light_Par_average"),
+			AirTemp:      getFieldPtr(fields, "Air_Temp_average"),
+			AirRh:        getFieldPtr(fields, "Air_Rh_average"),
+			LeafTemp:     getFieldPtr(fields, "Leaf_temp_average"),
+			DripWeight:   getFieldPtr(fields, "drip_weight_average"),
+			BagRh1:       getFieldPtr(fields, "Bag_Rh1_average"),
+			BagRh2:       getFieldPtr(fields, "Bag_Rh2_average"),
+			BagRh3:       getFieldPtr(fields, "Bag_Rh3_average"),
+			BagRh4:       getFieldPtr(fields, "Bag_Rh4_average"),
+			Rain:         getFieldPtr(fields, "Rain_average"),
 		})
 	}
 	return out, nil
+}
+
+func getFieldPtr(fields map[string]float64, key string) *float64 {
+	if v, ok := fields[key]; ok {
+		return &v
+	}
+	return nil
 }

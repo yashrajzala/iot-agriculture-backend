@@ -2,7 +2,6 @@ package services
 
 import (
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,8 +32,6 @@ type MetricsService struct {
 	// System metrics
 	uptime    prometheus.Gauge
 	startTime time.Time
-
-	mu sync.RWMutex
 }
 
 // NewMetricsService creates a new metrics service

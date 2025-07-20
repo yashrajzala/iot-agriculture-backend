@@ -36,15 +36,39 @@ func (a *AveragingService) AddSensorData(data models.ESP32SensorData) {
 		}
 		a.buffers[key] = buf
 	}
-	buf.S1Values = append(buf.S1Values, data.S1)
-	buf.S2Values = append(buf.S2Values, data.S2)
-	buf.S3Values = append(buf.S3Values, data.S3)
-	buf.S4Values = append(buf.S4Values, data.S4)
-	buf.S5Values = append(buf.S5Values, data.S5)
-	buf.S6Values = append(buf.S6Values, data.S6)
-	buf.S7Values = append(buf.S7Values, data.S7)
-	buf.S8Values = append(buf.S8Values, data.S8)
-	buf.S9Values = append(buf.S9Values, data.S9)
+	if data.BagTemp != nil {
+		buf.BagTemp = append(buf.BagTemp, *data.BagTemp)
+	}
+	if data.LightPar != nil {
+		buf.LightPar = append(buf.LightPar, *data.LightPar)
+	}
+	if data.AirTemp != nil {
+		buf.AirTemp = append(buf.AirTemp, *data.AirTemp)
+	}
+	if data.AirRh != nil {
+		buf.AirRh = append(buf.AirRh, *data.AirRh)
+	}
+	if data.LeafTemp != nil {
+		buf.LeafTemp = append(buf.LeafTemp, *data.LeafTemp)
+	}
+	if data.DripWeight != nil {
+		buf.DripWeight = append(buf.DripWeight, *data.DripWeight)
+	}
+	if data.BagRh1 != nil {
+		buf.BagRh1 = append(buf.BagRh1, *data.BagRh1)
+	}
+	if data.BagRh2 != nil {
+		buf.BagRh2 = append(buf.BagRh2, *data.BagRh2)
+	}
+	if data.BagRh3 != nil {
+		buf.BagRh3 = append(buf.BagRh3, *data.BagRh3)
+	}
+	if data.BagRh4 != nil {
+		buf.BagRh4 = append(buf.BagRh4, *data.BagRh4)
+	}
+	if data.Rain != nil {
+		buf.Rain = append(buf.Rain, *data.Rain)
+	}
 }
 
 // CalculateAndDisplayAverages calculates and displays 60-second averages for all nodes
@@ -96,50 +120,140 @@ func (a *AveragingService) GetAverages() []models.AverageResult {
 // calculateAveragesForBuffer calculates the averages for a single node buffer
 func calculateAveragesForBuffer(buf *models.SensorAverages) models.AverageResult {
 	duration := time.Since(buf.StartTime)
-	return models.AverageResult{
+	result := models.AverageResult{
 		GreenhouseID: buf.GreenhouseID,
 		NodeID:       buf.NodeID,
 		Duration:     duration.Seconds(),
-		Readings:     len(buf.S1Values),
-		S1Average:    calculateAverage(buf.S1Values),
-		S2Average:    calculateAverage(buf.S2Values),
-		S3Average:    calculateAverage(buf.S3Values),
-		S4Average:    calculateAverage(buf.S4Values),
-		S5Average:    calculateAverage(buf.S5Values),
-		S6Average:    calculateAverage(buf.S6Values),
-		S7Average:    calculateAverage(buf.S7Values),
-		S8Average:    calculateAverage(buf.S8Values),
-		S9Average:    calculateAverage(buf.S9Values),
+		Readings:     0,
 	}
+	if len(buf.BagTemp) > 0 {
+		avg := calculateAverage(buf.BagTemp)
+		result.BagTemp = &avg
+		result.Readings = len(buf.BagTemp)
+	}
+	if len(buf.LightPar) > 0 {
+		avg := calculateAverage(buf.LightPar)
+		result.LightPar = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.LightPar)
+		}
+	}
+	if len(buf.AirTemp) > 0 {
+		avg := calculateAverage(buf.AirTemp)
+		result.AirTemp = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.AirTemp)
+		}
+	}
+	if len(buf.AirRh) > 0 {
+		avg := calculateAverage(buf.AirRh)
+		result.AirRh = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.AirRh)
+		}
+	}
+	if len(buf.LeafTemp) > 0 {
+		avg := calculateAverage(buf.LeafTemp)
+		result.LeafTemp = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.LeafTemp)
+		}
+	}
+	if len(buf.DripWeight) > 0 {
+		avg := calculateAverage(buf.DripWeight)
+		result.DripWeight = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.DripWeight)
+		}
+	}
+	if len(buf.BagRh1) > 0 {
+		avg := calculateAverage(buf.BagRh1)
+		result.BagRh1 = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.BagRh1)
+		}
+	}
+	if len(buf.BagRh2) > 0 {
+		avg := calculateAverage(buf.BagRh2)
+		result.BagRh2 = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.BagRh2)
+		}
+	}
+	if len(buf.BagRh3) > 0 {
+		avg := calculateAverage(buf.BagRh3)
+		result.BagRh3 = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.BagRh3)
+		}
+	}
+	if len(buf.BagRh4) > 0 {
+		avg := calculateAverage(buf.BagRh4)
+		result.BagRh4 = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.BagRh4)
+		}
+	}
+	if len(buf.Rain) > 0 {
+		avg := calculateAverage(buf.Rain)
+		result.Rain = &avg
+		if result.Readings == 0 {
+			result.Readings = len(buf.Rain)
+		}
+	}
+	return result
 }
 
 // displayAveragesForResult displays the calculated averages for a single node
 func displayAveragesForResult(result models.AverageResult) {
-	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
-	fmt.Printf("🕐 60-SECOND SENSOR AVERAGES\n")
-	fmt.Printf(strings.Repeat("=", 60) + "\n")
+	fmt.Println("\n" + strings.Repeat("=", 60) + "\n")
+	fmt.Println("🕐 60-SECOND SENSOR AVERAGES")
+	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("⏱️  Duration: %.1f seconds\n", result.Duration)
 	fmt.Printf("🏠  Greenhouse: %s\n", result.GreenhouseID)
 	fmt.Printf("📡  Node: %s\n", result.NodeID)
 	fmt.Printf("📊  Total Readings: %d\n", result.Readings)
-	fmt.Printf(strings.Repeat("-", 60) + "\n")
-	fmt.Printf("🌡️  S1 (Temperature): %.2f\n", result.S1Average)
-	fmt.Printf("💧  S2 (Humidity): %.2f\n", result.S2Average)
-	fmt.Printf("🌱  S3 (Soil Moisture): %.2f\n", result.S3Average)
-	fmt.Printf("💡  S4 (Light): %.2f\n", result.S4Average)
-	fmt.Printf("🌿  S5 (CO2): %.2f\n", result.S5Average)
-	fmt.Printf("🌪️  S6 (Air Flow): %.2f\n", result.S6Average)
-	fmt.Printf("🔋  S7 (Battery): %.2f\n", result.S7Average)
-	fmt.Printf("📶  S8 (Signal): %.2f\n", result.S8Average)
-	fmt.Printf("⚡  S9 (Power): %.2f\n", result.S9Average)
-	fmt.Printf(strings.Repeat("=", 60) + "\n\n")
+	fmt.Println(strings.Repeat("-", 60))
+	if result.BagTemp != nil {
+		fmt.Printf("🌡️  Bag_Temp: %.2f\n", *result.BagTemp)
+	}
+	if result.LightPar != nil {
+		fmt.Printf("💡 Light_Par: %.2f\n", *result.LightPar)
+	}
+	if result.AirTemp != nil {
+		fmt.Printf("🌡️  Air_Temp: %.2f\n", *result.AirTemp)
+	}
+	if result.AirRh != nil {
+		fmt.Printf("💧 Air_Rh: %.2f\n", *result.AirRh)
+	}
+	if result.LeafTemp != nil {
+		fmt.Printf("🌿 Leaf_temp: %.2f\n", *result.LeafTemp)
+	}
+	if result.DripWeight != nil {
+		fmt.Printf("⚖️  drip_weight: %.2f\n", *result.DripWeight)
+	}
+	if result.BagRh1 != nil {
+		fmt.Printf("💧 Bag_Rh1: %.2f\n", *result.BagRh1)
+	}
+	if result.BagRh2 != nil {
+		fmt.Printf("💧 Bag_Rh2: %.2f\n", *result.BagRh2)
+	}
+	if result.BagRh3 != nil {
+		fmt.Printf("💧 Bag_Rh3: %.2f\n", *result.BagRh3)
+	}
+	if result.BagRh4 != nil {
+		fmt.Printf("💧 Bag_Rh4: %.2f\n", *result.BagRh4)
+	}
+	if result.Rain != nil {
+		fmt.Printf("🌧️  Rain: %.2f\n", *result.Rain)
+	}
+	fmt.Println(strings.Repeat("=", 60) + "\n")
 
-	// Debug info
 	if result.Readings == 0 {
-		fmt.Printf("⚠️  WARNING: No sensor readings received in the last 60 seconds for this node!\n")
-		fmt.Printf("   Check if ESP32 is sending data to topic for this node\n")
-		fmt.Printf("   Check MQTT broker connectivity\n")
-		fmt.Printf("   This period will NOT be logged to InfluxDB\n")
+		fmt.Println("⚠️  WARNING: No sensor readings received in the last 60 seconds for this node!")
+		fmt.Println("   Check if ESP32 is sending data to topic for this node")
+		fmt.Println("   Check MQTT broker connectivity")
+		fmt.Println("   This period will NOT be logged to InfluxDB")
 	}
 }
 
@@ -151,7 +265,39 @@ func (a *AveragingService) GetReadingCount() int {
 	defer a.mu.Unlock()
 	count := 0
 	for _, buf := range a.buffers {
-		count += len(buf.S1Values)
+		if len(buf.BagTemp) > 0 {
+			count += len(buf.BagTemp)
+		}
+		if len(buf.LightPar) > 0 {
+			count += len(buf.LightPar)
+		}
+		if len(buf.AirTemp) > 0 {
+			count += len(buf.AirTemp)
+		}
+		if len(buf.AirRh) > 0 {
+			count += len(buf.AirRh)
+		}
+		if len(buf.LeafTemp) > 0 {
+			count += len(buf.LeafTemp)
+		}
+		if len(buf.DripWeight) > 0 {
+			count += len(buf.DripWeight)
+		}
+		if len(buf.BagRh1) > 0 {
+			count += len(buf.BagRh1)
+		}
+		if len(buf.BagRh2) > 0 {
+			count += len(buf.BagRh2)
+		}
+		if len(buf.BagRh3) > 0 {
+			count += len(buf.BagRh3)
+		}
+		if len(buf.BagRh4) > 0 {
+			count += len(buf.BagRh4)
+		}
+		if len(buf.Rain) > 0 {
+			count += len(buf.Rain)
+		}
 	}
 	return count
 }

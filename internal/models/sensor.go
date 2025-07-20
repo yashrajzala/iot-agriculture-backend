@@ -3,52 +3,61 @@ package models
 import "time"
 
 // ESP32SensorData matches the JSON published by the ESP32
-// Only keep fields needed for MQTT sensor data
-// Example: {"greenhouse_id":"GH1","node_id":"Node01","S1":12,...,"S9":85}
+// Updated for new sensor names from Arduino/ESP32
+// Node01-04: Bag_Temp, Light_Par, Air_Temp, Air_Rh, Leaf_temp, drip_weight, Bag_Rh1, Bag_Rh2, Bag_Rh3, Bag_Rh4
+// Node05: Light_Par, Air_Temp, Air_Rh, Rain
+// All fields are optional to support different node payloads
+// Example: {"greenhouse_id":"GH1","node_id":"Node01","Bag_Temp":12,...}
 type ESP32SensorData struct {
 	GreenhouseID string `json:"greenhouse_id"`
 	NodeID       string `json:"node_id"`
-	Timestamp    *int64 `json:"timestamp,omitempty"` // Optional timestamp from ESP32
-	S1           int    `json:"S1"`
-	S2           int    `json:"S2"`
-	S3           int    `json:"S3"`
-	S4           int    `json:"S4"`
-	S5           int    `json:"S5"`
-	S6           int    `json:"S6"`
-	S7           int    `json:"S7"`
-	S8           int    `json:"S8"`
-	S9           int    `json:"S9"`
+	Timestamp    *int64 `json:"timestamp,omitempty"`
+	BagTemp      *int   `json:"Bag_Temp,omitempty"`
+	LightPar     *int   `json:"Light_Par,omitempty"`
+	AirTemp      *int   `json:"Air_Temp,omitempty"`
+	AirRh        *int   `json:"Air_Rh,omitempty"`
+	LeafTemp     *int   `json:"Leaf_temp,omitempty"`
+	DripWeight   *int   `json:"drip_weight,omitempty"`
+	BagRh1       *int   `json:"Bag_Rh1,omitempty"`
+	BagRh2       *int   `json:"Bag_Rh2,omitempty"`
+	BagRh3       *int   `json:"Bag_Rh3,omitempty"`
+	BagRh4       *int   `json:"Bag_Rh4,omitempty"`
+	Rain         *int   `json:"Rain,omitempty"`
 }
 
-// SensorAverages holds the accumulated values for averaging
+// SensorAverages holds the accumulated values for averaging (all fields optional)
 type SensorAverages struct {
 	GreenhouseID string
 	NodeID       string
-	S1Values     []int
-	S2Values     []int
-	S3Values     []int
-	S4Values     []int
-	S5Values     []int
-	S6Values     []int
-	S7Values     []int
-	S8Values     []int
-	S9Values     []int
+	BagTemp      []int
+	LightPar     []int
+	AirTemp      []int
+	AirRh        []int
+	LeafTemp     []int
+	DripWeight   []int
+	BagRh1       []int
+	BagRh2       []int
+	BagRh3       []int
+	BagRh4       []int
+	Rain         []int
 	StartTime    time.Time
 }
 
-// AverageResult represents the calculated averages
+// AverageResult represents the calculated averages (all fields optional)
 type AverageResult struct {
 	GreenhouseID string
 	NodeID       string
 	Duration     float64
 	Readings     int
-	S1Average    float64
-	S2Average    float64
-	S3Average    float64
-	S4Average    float64
-	S5Average    float64
-	S6Average    float64
-	S7Average    float64
-	S8Average    float64
-	S9Average    float64
+	BagTemp      *float64
+	LightPar     *float64
+	AirTemp      *float64
+	AirRh        *float64
+	LeafTemp     *float64
+	DripWeight   *float64
+	BagRh1       *float64
+	BagRh2       *float64
+	BagRh3       *float64
+	BagRh4       *float64
+	Rain         *float64
 }
